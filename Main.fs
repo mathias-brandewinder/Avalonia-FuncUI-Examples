@@ -22,6 +22,7 @@ module Main =
     type State = {
         Items: Item []
         SelectedItemId: Option<Guid>
+        ContainsA: bool
         }
         with
         member this.ItemIds =
@@ -45,6 +46,7 @@ module Main =
         {
             Items = items
             SelectedItemId = None
+            ContainsA = false
         },
         Cmd.none
 
@@ -55,6 +57,7 @@ module Main =
                 SelectedItemId = selection
             },
             Cmd.none
+
         | NameChanged name ->
             match state.SelectedItemId with
             | None -> state, Cmd.none
@@ -77,6 +80,7 @@ module Main =
                     Items = updatedItems
                 },
                 Cmd.none
+
         | ValueChanged value ->
             match state.SelectedItemId with
             | None -> state, Cmd.none
@@ -108,26 +112,41 @@ module Main =
                 DockPanel.create [
                     DockPanel.dock Dock.Left
                     DockPanel.children [
-                        ListBox.create [
-                            ListBox.dataItems state.ItemIds
-                            ListBox.onSelectedItemChanged(fun selectedId ->
-                                match selectedId with
-                                | :? Guid as selectedItemId ->
-                                    selectedItemId
-                                    |> Some
-                                    |> SelectedItemIdChanged
-                                    |> dispatch
-                                | _ ->
-                                    None
-                                    |> SelectedItemIdChanged
-                                    |> dispatch
-                                )
-                            ListBox.itemTemplate (
-                                DataTemplateView<Guid>.create(fun itemId ->
-                                    TextBlock.create [ TextBlock.text $"{itemId}"])
-                                    )
+                        StackPanel.create [
+                            StackPanel.orientation Orientation.Vertical
+                            StackPanel.children [
+
+                                TextBlock.create [ TextBlock.text "Filters" ]
+                                CheckBox.create [
+                                    CheckBox.content "Name contains A"
+                                    CheckBox.isChecked state.ContainsA
+                                    ]
+
+                                TextBlock.create [ TextBlock.text "Items" ]
+                                ListBox.create [
+                                        ListBox.dataItems state.ItemIds
+                                        ListBox.onSelectedItemChanged(fun selectedId ->
+                                            match selectedId with
+                                            | :? Guid as selectedItemId ->
+                                                selectedItemId
+                                                |> Some
+                                                |> SelectedItemIdChanged
+                                                |> dispatch
+                                            | _ ->
+                                                None
+                                                |> SelectedItemIdChanged
+                                                |> dispatch
+                                            )
+                                        ListBox.itemTemplate (
+                                            DataTemplateView<Guid>.create(fun itemId ->
+                                                TextBlock.create [ TextBlock.text $"{itemId}"])
+                                                )
+                                        ]
+                                    ]
+                                ]
                             ]
-                        ]
+
+
                     ]
                 // right: selected item
                 DockPanel.create [
