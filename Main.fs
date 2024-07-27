@@ -27,12 +27,19 @@ module Main =
         with
         member this.ItemIds =
             this.Items
+            |> Array.filter (fun item ->
+                if this.ContainsA
+                then item.Name.Contains("A")
+                else true
+                )
             |> Array.map (fun item -> item.Id)
 
     type Msg =
         | SelectedItemIdChanged of Option<Guid>
         | NameChanged of string
         | ValueChanged of float
+        | ToggleContainsA
+        | CreateItem
 
     let init (): State * Cmd<Msg> =
         let items =
@@ -104,6 +111,21 @@ module Main =
                 },
                 Cmd.none
 
+        | ToggleContainsA ->
+            { state with ContainsA = not (state.ContainsA) },
+            Cmd.none
+
+        | CreateItem ->
+            let item = {
+                Id = Guid.NewGuid()
+                Name = "NEW ITEM"
+                Value = 0.0
+                }
+            { state with
+                Items = state.Items |> Array.append (Array.singleton item )
+            },
+            Cmd.none
+
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
         DockPanel.create [
@@ -120,6 +142,13 @@ module Main =
                                 CheckBox.create [
                                     CheckBox.content "Name contains A"
                                     CheckBox.isChecked state.ContainsA
+                                    CheckBox.onIsCheckedChanged (fun _ -> ToggleContainsA |> dispatch)
+                                    ]
+
+                                TextBlock.create [ TextBlock.text "Create" ]
+                                Button.create [
+                                    Button.content "Create New"
+                                    Button.onClick (fun _ -> CreateItem |> dispatch)
                                     ]
 
                                 TextBlock.create [ TextBlock.text "Items" ]
