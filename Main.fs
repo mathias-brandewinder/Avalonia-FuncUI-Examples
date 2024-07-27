@@ -3,14 +3,12 @@ namespace PsychicBarnacle
 module Main =
 
     open System
-    open System.IO
-    open System.Threading
 
     open Elmish
 
     open Avalonia.Controls
-    open Avalonia.Platform.Storage
 
+    open Avalonia.FuncUI
     open Avalonia.FuncUI.DSL
     open Avalonia.FuncUI.Types
 
@@ -54,6 +52,10 @@ module Main =
                     DockPanel.children [
                         ListBox.create [
                             ListBox.dataItems state.Items
+                            ListBox.itemTemplate (
+                                DataTemplateView<Item>.create(fun item ->
+                                    TextBlock.create [ TextBlock.text $"{item.Id}"])
+                                    )
                             ]
                         ]
                     ]
