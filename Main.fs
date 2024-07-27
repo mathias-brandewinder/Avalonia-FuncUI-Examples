@@ -21,12 +21,17 @@ module Main =
 
     type State = {
         Items: Item []
-        SelectedItem: Option<Item>
+        SelectedItemId: Option<Guid>
         }
+        with
+        member this.ItemIds =
+            this.Items
+            |> Array.map (fun item -> item.Id)
 
     type Msg =
-        | SelectedItemChanged of Option<Item>
+        | SelectedItemIdChanged of Option<Guid>
         | NameChanged of string
+        | ValueChanged of float
 
     let init (): State * Cmd<Msg> =
         let items =
@@ -39,35 +44,59 @@ module Main =
                 )
         {
             Items = items
-            SelectedItem = None
+            SelectedItemId = None
         },
         Cmd.none
 
     let update (window: Window) (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | SelectedItemChanged selection ->
+        | SelectedItemIdChanged selection ->
             { state with
-                SelectedItem = selection
+                SelectedItemId = selection
             },
             Cmd.none
         | NameChanged name ->
-            match state.SelectedItem with
+            match state.SelectedItemId with
             | None -> state, Cmd.none
-            | Some selected ->
+            | Some selectedId ->
+                let item =
+                    state.Items
+                    |> Array.find (fun item -> item.Id = selectedId)
                 let updatedItem = {
-                    selected with
+                    item with
                         Name = name
                     }
                 let updatedItems =
                     state.Items
                     |> Array.map (fun item ->
-                        if item.Id = selected.Id
+                        if item.Id = selectedId
                         then updatedItem
                         else item
                         )
                 { state with
                     Items = updatedItems
-                    SelectedItem = Some updatedItem
+                },
+                Cmd.none
+        | ValueChanged value ->
+            match state.SelectedItemId with
+            | None -> state, Cmd.none
+            | Some selectedId ->
+                let item =
+                    state.Items
+                    |> Array.find (fun item -> item.Id = selectedId)
+                let updatedItem = {
+                    item with
+                        Value = value
+                    }
+                let updatedItems =
+                    state.Items
+                    |> Array.map (fun item ->
+                        if item.Id = selectedId
+                        then updatedItem
+                        else item
+                        )
+                { state with
+                    Items = updatedItems
                 },
                 Cmd.none
 
@@ -80,22 +109,22 @@ module Main =
                     DockPanel.dock Dock.Left
                     DockPanel.children [
                         ListBox.create [
-                            ListBox.dataItems state.Items
-                            ListBox.onSelectedItemChanged(fun selected ->
-                                match selected with
-                                | :? Item as selectedItem ->
-                                    selectedItem
+                            ListBox.dataItems state.ItemIds
+                            ListBox.onSelectedItemChanged(fun selectedId ->
+                                match selectedId with
+                                | :? Guid as selectedItemId ->
+                                    selectedItemId
                                     |> Some
-                                    |> SelectedItemChanged
+                                    |> SelectedItemIdChanged
                                     |> dispatch
                                 | _ ->
                                     None
-                                    |> SelectedItemChanged
+                                    |> SelectedItemIdChanged
                                     |> dispatch
                                 )
                             ListBox.itemTemplate (
-                                DataTemplateView<Item>.create(fun item ->
-                                    TextBlock.create [ TextBlock.text $"{item.Id}"])
+                                DataTemplateView<Guid>.create(fun itemId ->
+                                    TextBlock.create [ TextBlock.text $"{itemId}"])
                                     )
                             ]
                         ]
@@ -103,13 +132,16 @@ module Main =
                 // right: selected item
                 DockPanel.create [
                     DockPanel.children [
-                        match state.SelectedItem with
+                        match state.SelectedItemId with
                         | None ->
                             TextBlock.create [
                                 TextBlock.text "No item selected"
                                 ]
 
-                        | Some item ->
+                        | Some itemId ->
+                            let item =
+                                state.Items
+                                |> Array.find (fun item -> item.Id = itemId)
                             StackPanel.create [
                                 StackPanel.orientation Orientation.Vertical
                                 StackPanel.children [
@@ -126,6 +158,12 @@ module Main =
                                         ]
                                     NumericUpDown.create [
                                         NumericUpDown.value (decimal item.Value)
+                                        NumericUpDown.onValueChanged (fun value ->
+                                            value.Value
+                                            |> float
+                                            |> ValueChanged
+                                            |> dispatch
+                                            )
                                         ]
                                     ]
                                 ]
