@@ -7,6 +7,7 @@ module Main =
     open Elmish
 
     open Avalonia.Controls
+    open Avalonia.Layout
 
     open Avalonia.FuncUI
     open Avalonia.FuncUI.DSL
@@ -88,8 +89,19 @@ module Main =
                                 ]
 
                         | Some item ->
-                            TextBlock.create [
-                                TextBlock.text $"{item.Name}"
+                            StackPanel.create [
+                                StackPanel.orientation Orientation.Vertical
+                                StackPanel.children [
+                                    TextBlock.create [
+                                        TextBlock.text $"Item Id: {item.Id}"
+                                        ]
+                                    TextBox.create [
+                                        TextBox.text item.Name
+                                        ]
+                                    NumericUpDown.create [
+                                        NumericUpDown.value (decimal item.Value)
+                                        ]
+                                    ]
                                 ]
                         ]
                     ]
