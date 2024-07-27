@@ -26,6 +26,7 @@ module Main =
 
     type Msg =
         | SelectedItemChanged of Option<Item>
+        | NameChanged of string
 
     let init (): State * Cmd<Msg> =
         let items =
@@ -49,6 +50,26 @@ module Main =
                 SelectedItem = selection
             },
             Cmd.none
+        | NameChanged name ->
+            match state.SelectedItem with
+            | None -> state, Cmd.none
+            | Some selected ->
+                let updatedItem = {
+                    selected with
+                        Name = name
+                    }
+                let updatedItems =
+                    state.Items
+                    |> Array.map (fun item ->
+                        if item.Id = selected.Id
+                        then updatedItem
+                        else item
+                        )
+                { state with
+                    Items = updatedItems
+                    SelectedItem = Some updatedItem
+                },
+                Cmd.none
 
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
@@ -97,6 +118,11 @@ module Main =
                                         ]
                                     TextBox.create [
                                         TextBox.text item.Name
+                                        TextBox.onTextChanged (fun text ->
+                                            text
+                                            |> NameChanged
+                                            |> dispatch
+                                            )
                                         ]
                                     NumericUpDown.create [
                                         NumericUpDown.value (decimal item.Value)
