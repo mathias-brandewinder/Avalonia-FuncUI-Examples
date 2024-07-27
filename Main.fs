@@ -20,10 +20,11 @@ module Main =
 
     type State = {
         Items: Item []
+        SelectedItem: Option<Item>
         }
 
     type Msg =
-        | Todo
+        | SelectedItemChanged of Option<Item>
 
     let init (): State * Cmd<Msg> =
         let items =
@@ -34,13 +35,19 @@ module Main =
                     Value = float i
                 }
                 )
-        { Items = items },
+        {
+            Items = items
+            SelectedItem = None
+        },
         Cmd.none
 
     let update (window: Window) (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | Todo ->
-            state, Cmd.none
+        | SelectedItemChanged selection ->
+            { state with
+                SelectedItem = selection
+            },
+            Cmd.none
 
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
@@ -52,6 +59,18 @@ module Main =
                     DockPanel.children [
                         ListBox.create [
                             ListBox.dataItems state.Items
+                            ListBox.onSelectedItemChanged(fun selected ->
+                                match selected with
+                                | :? Item as selectedItem ->
+                                    selectedItem
+                                    |> Some
+                                    |> SelectedItemChanged
+                                    |> dispatch
+                                | _ ->
+                                    None
+                                    |> SelectedItemChanged
+                                    |> dispatch
+                                )
                             ListBox.itemTemplate (
                                 DataTemplateView<Item>.create(fun item ->
                                     TextBlock.create [ TextBlock.text $"{item.Id}"])
@@ -62,7 +81,16 @@ module Main =
                 // right: selected item
                 DockPanel.create [
                     DockPanel.children [
-                        TextBlock.create [ TextBlock.text "TODO display selected"]
+                        match state.SelectedItem with
+                        | None ->
+                            TextBlock.create [
+                                TextBlock.text "No item selected"
+                                ]
+
+                        | Some item ->
+                            TextBlock.create [
+                                TextBlock.text $"{item.Name}"
+                                ]
                         ]
                     ]
                 ]
