@@ -19,6 +19,22 @@ module Main =
         Value: float
         }
 
+    [<CustomEquality; NoComparison>]
+    type Selector = {
+        Id: Guid
+        DisplayName: string
+        }
+        with
+        interface IEquatable<Selector> with
+            member this.Equals (other: Selector): bool =
+                other.Id = this.Id
+        override this.Equals other =
+            match other with
+            | :? Selector as s -> s.Id = this.Id
+            | _ -> false
+        override this.GetHashCode (): int =
+            this.Id.GetHashCode()
+
     type State = {
         Items: Item []
         SelectedItemId: Option<Guid>
@@ -32,7 +48,12 @@ module Main =
                 then item.Name.Contains("A")
                 else true
                 )
-            |> Array.map (fun item -> item.Id)
+            |> Array.map (fun item ->
+                {
+                    Id = item.Id
+                    DisplayName = item.Name
+                }
+                )
 
     type Msg =
         | SelectedItemIdChanged of Option<Guid>
@@ -158,10 +179,10 @@ module Main =
                                 TextBlock.create [ TextBlock.text "Items" ]
                                 ListBox.create [
                                         ListBox.dataItems state.ItemIds
-                                        ListBox.onSelectedItemChanged(fun selectedId ->
-                                            match selectedId with
-                                            | :? Guid as selectedItemId ->
-                                                selectedItemId
+                                        ListBox.onSelectedItemChanged(fun selected ->
+                                            match selected with
+                                            | :? Selector as selectedItem ->
+                                                selectedItem.Id
                                                 |> Some
                                                 |> SelectedItemIdChanged
                                                 |> dispatch
@@ -171,8 +192,8 @@ module Main =
                                                 |> dispatch
                                             )
                                         ListBox.itemTemplate (
-                                            DataTemplateView<Guid>.create(fun itemId ->
-                                                TextBlock.create [ TextBlock.text $"{itemId}"])
+                                            DataTemplateView<Selector>.create(fun item ->
+                                                TextBlock.create [ TextBlock.text $"{item.DisplayName}"])
                                                 )
                                         ]
                                     ]
