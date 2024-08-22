@@ -179,17 +179,30 @@ module Main =
                                 TextBlock.create [ TextBlock.text "Items" ]
                                 ListBox.create [
                                         ListBox.dataItems state.ItemIds
-                                        ListBox.onSelectedItemChanged(fun selected ->
-                                            match selected with
-                                            | :? Selector as selectedItem ->
-                                                selectedItem.Id
-                                                |> Some
-                                                |> SelectedItemIdChanged
-                                                |> dispatch
-                                            | _ ->
-                                                None
-                                                |> SelectedItemIdChanged
-                                                |> dispatch
+                                        ListBox.onSelectedItemChanged(
+                                            (fun selected ->
+                                                match selected with
+                                                | :? Selector as selectedItem ->
+                                                    match state.SelectedItemId with
+                                                    | None ->
+                                                        selectedItem.Id
+                                                        |> Some
+                                                        |> SelectedItemIdChanged
+                                                        |> dispatch
+                                                    | Some x ->
+                                                        if x = selectedItem.Id
+                                                        then ignore ()
+                                                        else
+                                                            selectedItem.Id
+                                                            |> Some
+                                                            |> SelectedItemIdChanged
+                                                            |> dispatch
+                                                | _ ->
+                                                    None
+                                                    |> SelectedItemIdChanged
+                                                    |> dispatch
+                                                ),
+                                            SubPatchOptions.Always
                                             )
                                         ListBox.itemTemplate (
                                             DataTemplateView<Selector>.create(fun item ->
