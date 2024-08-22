@@ -17,12 +17,14 @@ module Main =
         Id: Guid
         Name: string
         Value: float
+        IsIncluded: bool
         }
 
     [<CustomEquality; NoComparison>]
     type Selector = {
         Id: Guid
         DisplayName: string
+        IsIncluded: bool
         }
         with
         interface IEquatable<Selector> with
@@ -52,6 +54,7 @@ module Main =
                 {
                     Id = item.Id
                     DisplayName = item.Name
+                    IsIncluded = item.IsIncluded
                 }
                 )
 
@@ -61,6 +64,7 @@ module Main =
         | ValueChanged of float
         | ToggleContainsA
         | CreateItem
+        | IsIncludedChanged of Guid
 
     let init (): State * Cmd<Msg> =
         let items =
@@ -69,6 +73,7 @@ module Main =
                     Id = Guid.NewGuid()
                     Name = $"Item {i}"
                     Value = float i
+                    IsIncluded = false
                 }
                 )
         {
@@ -86,6 +91,18 @@ module Main =
             },
             Cmd.none
 
+        | IsIncludedChanged itemId ->
+            let updatedItems =
+                state.Items
+                |> Array.map (fun item ->
+                    if item.Id = itemId
+                    then { item with IsIncluded = not item.IsIncluded }
+                    else item
+                    )
+            { state with
+                Items = updatedItems
+            },
+            Cmd.none
         | NameChanged name ->
             match state.SelectedItemId with
             | None -> state, Cmd.none
@@ -141,6 +158,7 @@ module Main =
                 Id = Guid.NewGuid()
                 Name = "NEW ITEM"
                 Value = 0.0
+                IsIncluded = false
                 }
             { state with
                 Items = state.Items |> Array.append (Array.singleton item )
@@ -206,15 +224,31 @@ module Main =
                                             )
                                         ListBox.itemTemplate (
                                             DataTemplateView<Selector>.create(fun item ->
-                                                TextBlock.create [ TextBlock.text $"{item.DisplayName}"])
+                                                StackPanel.create [
+                                                    StackPanel.orientation Orientation.Horizontal
+                                                    StackPanel.children [
+                                                        CheckBox.create [
+                                                            CheckBox.isChecked item.IsIncluded
+                                                            CheckBox.onIsCheckedChanged (fun _ ->
+                                                                item.Id
+                                                                |> IsIncludedChanged
+                                                                |> dispatch
+                                                                )
+                                                        ]
+                                                        TextBlock.create [
+                                                            TextBlock.text $"{item.DisplayName}"
+                                                            ]
+                                                        ]
+                                                    ]
+
                                                 )
+                                            )
                                         ]
                                     ]
                                 ]
                             ]
-
-
                     ]
+
                 // right: selected item
                 DockPanel.create [
                     DockPanel.children [
