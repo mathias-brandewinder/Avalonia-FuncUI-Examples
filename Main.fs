@@ -151,6 +151,10 @@ module Main =
                                     Button.onClick (fun _ -> CreateItem |> dispatch)
                                     ]
 
+                                Border.create [
+                                    Border.dock Dock.Bottom
+                                    ]
+
                                 TextBlock.create [ TextBlock.text "Items" ]
                                 ListBox.create [
                                         ListBox.dataItems state.ItemIds
