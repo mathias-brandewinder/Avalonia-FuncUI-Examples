@@ -207,10 +207,9 @@ module Main =
                                                         |> Some
                                                         |> SelectedItemIdChanged
                                                         |> dispatch
-                                                    | Some x ->
-                                                        if x = selectedItem.Id
-                                                        then ignore ()
-                                                        else
+                                                    | Some currentlySelectedId ->
+                                                        if currentlySelectedId <> selectedItem.Id
+                                                        then
                                                             selectedItem.Id
                                                             |> Some
                                                             |> SelectedItemIdChanged
@@ -271,18 +270,22 @@ module Main =
                                     TextBox.create [
                                         TextBox.text item.Name
                                         TextBox.onTextChanged (fun text ->
-                                            text
-                                            |> NameChanged
-                                            |> dispatch
+                                            if text <> item.Name
+                                            then
+                                                text
+                                                |> NameChanged
+                                                |> dispatch
                                             )
                                         ]
                                     NumericUpDown.create [
                                         NumericUpDown.value (decimal item.Value)
                                         NumericUpDown.onValueChanged (fun value ->
-                                            value.Value
-                                            |> float
-                                            |> ValueChanged
-                                            |> dispatch
+                                            if value.Value <> (decimal item.Value)
+                                            then
+                                                value.Value
+                                                |> float
+                                                |> ValueChanged
+                                                |> dispatch
                                             )
                                         ]
                                     ]
