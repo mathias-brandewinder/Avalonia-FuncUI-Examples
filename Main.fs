@@ -78,7 +78,7 @@ module Main =
                 )
         {
             Items = items
-            SelectedItemId = None
+            SelectedItemId = Some (items.[0].Id)
             ContainsA = false
         },
         Cmd.none
@@ -196,56 +196,55 @@ module Main =
 
                                 TextBlock.create [ TextBlock.text "Items" ]
                                 ListBox.create [
-                                        ListBox.dataItems state.ItemIds
-                                        ListBox.onSelectedItemChanged(
-                                            (fun selected ->
-                                                match selected with
-                                                | :? Selector as selectedItem ->
-                                                    match state.SelectedItemId with
-                                                    | None ->
+                                    ListBox.dataItems state.ItemIds
+                                    ListBox.onSelectedItemChanged(
+                                        (fun selected ->
+                                            match selected with
+                                            | :? Selector as selectedItem ->
+                                                match state.SelectedItemId with
+                                                | None ->
+                                                    selectedItem.Id
+                                                    |> Some
+                                                    |> SelectedItemIdChanged
+                                                    |> dispatch
+                                                | Some currentlySelectedId ->
+                                                    if currentlySelectedId <> selectedItem.Id
+                                                    then
                                                         selectedItem.Id
                                                         |> Some
                                                         |> SelectedItemIdChanged
                                                         |> dispatch
-                                                    | Some currentlySelectedId ->
-                                                        if currentlySelectedId <> selectedItem.Id
-                                                        then
-                                                            selectedItem.Id
-                                                            |> Some
-                                                            |> SelectedItemIdChanged
+                                            | _ ->
+                                                None
+                                                |> SelectedItemIdChanged
+                                                |> dispatch
+                                            ),
+                                        SubPatchOptions.Always
+                                        )
+                                    ListBox.itemTemplate (
+                                        DataTemplateView<Selector>.create(fun item ->
+                                            StackPanel.create [
+                                                StackPanel.orientation Orientation.Horizontal
+                                                StackPanel.children [
+                                                    CheckBox.create [
+                                                        CheckBox.isChecked item.IsIncluded
+                                                        CheckBox.onIsCheckedChanged (fun _ ->
+                                                            item.Id
+                                                            |> IsIncludedChanged
                                                             |> dispatch
-                                                | _ ->
-                                                    None
-                                                    |> SelectedItemIdChanged
-                                                    |> dispatch
-                                                ),
-                                            SubPatchOptions.Always
-                                            )
-                                        ListBox.itemTemplate (
-                                            DataTemplateView<Selector>.create(fun item ->
-                                                StackPanel.create [
-                                                    StackPanel.orientation Orientation.Horizontal
-                                                    StackPanel.children [
-                                                        CheckBox.create [
-                                                            CheckBox.isChecked item.IsIncluded
-                                                            CheckBox.onIsCheckedChanged (fun _ ->
-                                                                item.Id
-                                                                |> IsIncludedChanged
-                                                                |> dispatch
-                                                                )
-                                                        ]
-                                                        TextBlock.create [
-                                                            TextBlock.text $"{item.DisplayName}"
-                                                            ]
+                                                            )
+                                                    ]
+                                                    TextBlock.create [
+                                                        TextBlock.text $"{item.DisplayName}"
                                                         ]
                                                     ]
-
-                                                )
+                                                ]
                                             )
-                                        ]
+                                        )
                                     ]
                                 ]
                             ]
+                        ]
                     ]
 
                 // right: selected item
