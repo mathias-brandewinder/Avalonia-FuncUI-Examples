@@ -82,18 +82,11 @@ module ListSelection =
             match state.SelectedItemId with
             | None -> state, Cmd.none
             | Some selectedId ->
-                let item =
-                    state.Items
-                    |> Array.find (fun item -> item.Id = selectedId)
-                let updatedItem = {
-                    item with
-                        Name = name
-                    }
                 let updatedItems =
                     state.Items
                     |> Array.map (fun item ->
                         if item.Id = selectedId
-                        then updatedItem
+                        then { item with Name = name }
                         else item
                         )
                 { state with
@@ -105,18 +98,11 @@ module ListSelection =
             match state.SelectedItemId with
             | None -> state, Cmd.none
             | Some selectedId ->
-                let item =
-                    state.Items
-                    |> Array.find (fun item -> item.Id = selectedId)
-                let updatedItem = {
-                    item with
-                        Value = value
-                    }
                 let updatedItems =
                     state.Items
                     |> Array.map (fun item ->
                         if item.Id = selectedId
-                        then updatedItem
+                        then { item with Value = value }
                         else item
                         )
                 { state with
@@ -143,7 +129,6 @@ module ListSelection =
                     |> Array.append (Array.singleton item)
             },
             Cmd.none
-            // Cmd.ofMsg (SelectedItemIdChanged (Some item.Id))
 
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
@@ -206,6 +191,7 @@ module ListSelection =
                                                         |> Some
                                                         |> SelectedItemIdChanged
                                                         |> dispatch
+                                                    else ignore ()
                                             | _ ->
                                                 None
                                                 |> SelectedItemIdChanged
@@ -234,6 +220,9 @@ module ListSelection =
                                             )
                                         )
                                     ]
+                                    // We assign a unique key each time,
+                                    // forcing a refresh of the ListBox.
+                                    |> View.withKey (Guid.NewGuid().ToString())
                                 ]
                             ]
                         ]
