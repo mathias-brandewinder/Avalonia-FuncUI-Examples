@@ -31,7 +31,7 @@ module Shell =
             base.MinWidth <- 1200.0
             base.MinHeight <- 800.0
 
-            Elmish.Program.mkProgram (fun () -> Main.init()) (Main.update this) Main.view
+            Elmish.Program.mkProgram Main.init (Main.update this) Main.view
             |> Program.withHost this
             |> Program.run
 

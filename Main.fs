@@ -2,37 +2,58 @@ namespace PsychicBarnacle
 
 module Main =
 
-    open System.IO
-    open System.Threading
+    open System
 
     open Elmish
 
     open Avalonia.Controls
-    open Avalonia.Platform.Storage
+    open Avalonia.Layout
 
+    open Avalonia.FuncUI
     open Avalonia.FuncUI.DSL
     open Avalonia.FuncUI.Types
 
     type State = {
-        Todo: string
+        ListSelection: ListSelection.State
         }
 
     type Msg =
-        | Todo
+        | ListSelection of ListSelection.Msg
 
     let init (): State * Cmd<Msg> =
-        { Todo = "TODO" }, Cmd.none
+        let state, _ = ListSelection.init ()
+        { ListSelection = state }, Cmd.none
 
     let update (window: Window) (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | Todo ->
-            state, Cmd.none
+        | ListSelection msg ->
+            let updatedState, _ = ListSelection.update msg state.ListSelection
+            { state with
+                ListSelection = updatedState
+            },
+            Cmd.none
 
     let view (state: State) (dispatch: Msg -> unit): IView =
+
+        let tabs: List<IView> =
+            [
+                TabItem.create [
+                    TabItem.header "List Selection"
+                    TabItem.content (ListSelection.view state.ListSelection (ListSelection >> dispatch))
+                    ]
+            ]
+
+        // main dock panel
         DockPanel.create [
             DockPanel.children [
-                TextBlock.create [
-                    TextBlock.text state.Todo
+                // left: item selector
+                DockPanel.create [
+                    DockPanel.children [
+                        TabControl.create [
+                            TabControl.tabStripPlacement Dock.Left
+                            TabControl.viewItems tabs
+                            ]
+                        ]
                     ]
                 ]
             ]
