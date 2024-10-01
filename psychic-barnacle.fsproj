@@ -6,6 +6,7 @@
     <RootNamespace>psychic_barnacle</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AsyncOperation.fs" />
     <Compile Include="ListSelection.fs" />
     <Compile Include="Main.fs" />
     <Compile Include="Program.fs" />

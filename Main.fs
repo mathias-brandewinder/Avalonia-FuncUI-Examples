@@ -15,14 +15,21 @@ module Main =
 
     type State = {
         ListSelection: ListSelection.State
+        AsyncOperation: AsyncOperation.State
         }
 
     type Msg =
         | ListSelection of ListSelection.Msg
+        | AsyncOperation of AsyncOperation.Msg
 
     let init (): State * Cmd<Msg> =
-        let state, _ = ListSelection.init ()
-        { ListSelection = state }, Cmd.none
+        let listSelectionState, _ = ListSelection.init ()
+        let asyncOperationState, _ = AsyncOperation.init ()
+        {
+            ListSelection = listSelectionState
+            AsyncOperation = asyncOperationState
+        },
+        Cmd.none
 
     let update (window: Window) (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
@@ -30,6 +37,12 @@ module Main =
             let updatedState, _ = ListSelection.update msg state.ListSelection
             { state with
                 ListSelection = updatedState
+            },
+            Cmd.none
+        | AsyncOperation msg ->
+            let updatedState, _ = AsyncOperation.update msg state.AsyncOperation
+            { state with
+                AsyncOperation = updatedState
             },
             Cmd.none
 
@@ -40,6 +53,10 @@ module Main =
                 TabItem.create [
                     TabItem.header "List Selection"
                     TabItem.content (ListSelection.view state.ListSelection (ListSelection >> dispatch))
+                    ]
+                TabItem.create [
+                    TabItem.header "Async Operations"
+                    TabItem.content (AsyncOperation.view state.AsyncOperation (AsyncOperation >> dispatch))
                     ]
             ]
 
