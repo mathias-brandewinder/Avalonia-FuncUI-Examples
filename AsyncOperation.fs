@@ -17,6 +17,9 @@ module AsyncOperation =
 
     module AsyncCalls =
 
+        // The trick here was to use
+        // Program.runWithAvaloniaSyncDispatch () in Program,
+        // instead of Program.run.
         let increment (x: int) =
             async {
                 do! Async.Sleep 2000
@@ -67,11 +70,11 @@ module AsyncOperation =
                             TextBlock.text $"{state.Number}"
                             ]
                         Button.create [
-                            Button.content "Inc"
+                            Button.content "Increment asynchronously, with delay"
                             Button.onClick (fun _ -> StartedIncrement |> dispatch)
                             ]
                         Button.create [
-                            Button.content "Dec"
+                            Button.content "Decrement, synchronous / immediate"
                             Button.onClick (fun _ -> Decrement |> dispatch)
                             ]
                         ]
