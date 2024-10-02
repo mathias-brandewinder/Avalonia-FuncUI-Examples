@@ -130,6 +130,102 @@ module ListSelection =
             },
             Cmd.none
 
+    module Selector =
+
+        let view (state: State) (dispatch: Msg -> unit): IView =
+            DockPanel.create [
+                DockPanel.dock Dock.Left
+                DockPanel.width 200
+                DockPanel.children [
+                    StackPanel.create [
+                        StackPanel.orientation Orientation.Vertical
+                        StackPanel.children [
+
+                            TextBlock.create [ TextBlock.text "Filter" ]
+                            TextBox.create [
+                                TextBox.text state.Filter
+                                TextBox.onTextChanged (fun text ->
+                                    text |> FilterChanged |> dispatch
+                                    )
+                                ]
+
+                            TextBlock.create [ TextBlock.text "Create" ]
+                            Button.create [
+                                Button.content "Create New"
+                                Button.onClick (fun _ -> CreateItem |> dispatch)
+                                ]
+
+                            Border.create [
+                                Border.dock Dock.Bottom
+                                ]
+
+                            TextBlock.create [ TextBlock.text "Items" ]
+                            ListBox.create [
+                                ListBox.dataItems (state.VisibleItems)
+                                ListBox.selectedItem (
+                                    match state.SelectedItemId with
+                                    | None -> null
+                                    | Some itemId ->
+                                        state.VisibleItems
+                                        |> Array.tryFind (fun item -> item.Id = itemId)
+                                        |> function
+                                            | None -> null
+                                            | Some item -> box item
+                                    )
+                                ListBox.onSelectedItemChanged(
+                                    (fun selected ->
+                                        match selected with
+                                        | :? Item as selectedItem ->
+                                            match state.SelectedItemId with
+                                            | None ->
+                                                selectedItem.Id
+                                                |> Some
+                                                |> SelectedItemIdChanged
+                                                |> dispatch
+                                            | Some currentlySelectedId ->
+                                                if currentlySelectedId <> selectedItem.Id
+                                                then
+                                                    selectedItem.Id
+                                                    |> Some
+                                                    |> SelectedItemIdChanged
+                                                    |> dispatch
+                                                else ignore ()
+                                        | _ ->
+                                            None
+                                            |> SelectedItemIdChanged
+                                            |> dispatch
+                                        ),
+                                    SubPatchOptions.Always
+                                    )
+                                ListBox.itemTemplate (
+                                    DataTemplateView<Item>.create(fun item ->
+                                        StackPanel.create [
+                                            StackPanel.orientation Orientation.Horizontal
+                                            StackPanel.children [
+                                                CheckBox.create [
+                                                    CheckBox.isChecked item.IsIncluded
+                                                    CheckBox.onIsCheckedChanged (fun _ ->
+                                                        item.Id
+                                                        |> IsIncludedChanged
+                                                        |> dispatch
+                                                        )
+                                                ]
+                                                TextBlock.create [
+                                                    TextBlock.text $"{item.Name}"
+                                                    ]
+                                                ]
+                                            ]
+                                        )
+                                    )
+                                ]
+                                // We assign a unique key each time,
+                                // forcing a refresh of the ListBox.
+                                |> View.withKey (Guid.NewGuid().ToString())
+                            ]
+                        ]
+                    ]
+                ]
+
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
         DockPanel.create [
@@ -138,93 +234,9 @@ module ListSelection =
                 DockPanel.create [
                     DockPanel.dock Dock.Left
                     DockPanel.width 200
+
                     DockPanel.children [
-                        StackPanel.create [
-                            StackPanel.orientation Orientation.Vertical
-                            StackPanel.children [
-
-                                TextBlock.create [ TextBlock.text "Filter" ]
-                                TextBox.create [
-                                    TextBox.text state.Filter
-                                    TextBox.onTextChanged (fun text ->
-                                        text |> FilterChanged |> dispatch
-                                        )
-                                    ]
-
-                                TextBlock.create [ TextBlock.text "Create" ]
-                                Button.create [
-                                    Button.content "Create New"
-                                    Button.onClick (fun _ -> CreateItem |> dispatch)
-                                    ]
-
-                                Border.create [
-                                    Border.dock Dock.Bottom
-                                    ]
-
-                                TextBlock.create [ TextBlock.text "Items" ]
-                                ListBox.create [
-                                    ListBox.dataItems (state.VisibleItems)
-                                    ListBox.selectedItem (
-                                        match state.SelectedItemId with
-                                        | None -> null
-                                        | Some itemId ->
-                                            state.VisibleItems
-                                            |> Array.tryFind (fun item -> item.Id = itemId)
-                                            |> function
-                                                | None -> null
-                                                | Some item -> box item
-                                        )
-                                    ListBox.onSelectedItemChanged(
-                                        (fun selected ->
-                                            match selected with
-                                            | :? Item as selectedItem ->
-                                                match state.SelectedItemId with
-                                                | None ->
-                                                    selectedItem.Id
-                                                    |> Some
-                                                    |> SelectedItemIdChanged
-                                                    |> dispatch
-                                                | Some currentlySelectedId ->
-                                                    if currentlySelectedId <> selectedItem.Id
-                                                    then
-                                                        selectedItem.Id
-                                                        |> Some
-                                                        |> SelectedItemIdChanged
-                                                        |> dispatch
-                                                    else ignore ()
-                                            | _ ->
-                                                None
-                                                |> SelectedItemIdChanged
-                                                |> dispatch
-                                            ),
-                                        SubPatchOptions.Always
-                                        )
-                                    ListBox.itemTemplate (
-                                        DataTemplateView<Item>.create(fun item ->
-                                            StackPanel.create [
-                                                StackPanel.orientation Orientation.Horizontal
-                                                StackPanel.children [
-                                                    CheckBox.create [
-                                                        CheckBox.isChecked item.IsIncluded
-                                                        CheckBox.onIsCheckedChanged (fun _ ->
-                                                            item.Id
-                                                            |> IsIncludedChanged
-                                                            |> dispatch
-                                                            )
-                                                    ]
-                                                    TextBlock.create [
-                                                        TextBlock.text $"{item.Name}"
-                                                        ]
-                                                    ]
-                                                ]
-                                            )
-                                        )
-                                    ]
-                                    // We assign a unique key each time,
-                                    // forcing a refresh of the ListBox.
-                                    |> View.withKey (Guid.NewGuid().ToString())
-                                ]
-                            ]
+                        Selector.view state dispatch
                         ]
                     ]
 
