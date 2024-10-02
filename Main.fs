@@ -40,11 +40,11 @@ module Main =
             },
             Cmd.none
         | AsyncOperation msg ->
-            let updatedState, _ = AsyncOperation.update msg state.AsyncOperation
+            let updatedState, followUpCommand = AsyncOperation.update msg state.AsyncOperation
             { state with
                 AsyncOperation = updatedState
             },
-            Cmd.none
+            Cmd.batch [ (Cmd.map AsyncOperation followUpCommand) ]
 
     let view (state: State) (dispatch: Msg -> unit): IView =
 

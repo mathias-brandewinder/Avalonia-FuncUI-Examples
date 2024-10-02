@@ -33,7 +33,8 @@ module Shell =
 
             Elmish.Program.mkProgram Main.init (Main.update this) Main.view
             |> Program.withHost this
-            |> Program.run
+            |> Program.runWithAvaloniaSyncDispatch ()
+            // |> Program.run
 
 type App() =
     inherit Application()

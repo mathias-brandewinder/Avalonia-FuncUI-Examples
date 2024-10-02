@@ -3,22 +3,39 @@ namespace PsychicBarnacle
 module AsyncOperation =
 
     open System
+    open System.Threading
 
     open Elmish
 
     open Avalonia.Controls
     open Avalonia.Layout
+    open Avalonia.Threading
 
     open Avalonia.FuncUI
     open Avalonia.FuncUI.DSL
     open Avalonia.FuncUI.Types
+
+    module AsyncCalls =
+
+        let increment (x: int) =
+            async {
+                do! Async.Sleep 2000
+                return x + 1
+                }
+
+        let decrement (x: int) =
+            async {
+                do! Async.Sleep 2000
+                return x - 1
+                }
 
     type State = {
         Number: int
         }
 
     type Msg =
-        | Increment
+        | StartedIncrement
+        | CompletedIncrement of int
         | Decrement
 
     let init (): State * Cmd<Msg> =
@@ -29,8 +46,12 @@ module AsyncOperation =
 
     let update (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | Increment ->
-            { state with Number = state.Number + 1 },
+        | StartedIncrement ->
+            let cmd = Cmd.OfAsync.perform (AsyncCalls.increment) state.Number CompletedIncrement
+            state,
+            cmd
+        | CompletedIncrement value ->
+            { state with Number = value },
             Cmd.none
         | Decrement ->
             { state with Number = state.Number - 1 },
@@ -47,7 +68,7 @@ module AsyncOperation =
                             ]
                         Button.create [
                             Button.content "Inc"
-                            Button.onClick (fun _ -> Increment |> dispatch)
+                            Button.onClick (fun _ -> StartedIncrement |> dispatch)
                             ]
                         Button.create [
                             Button.content "Dec"
