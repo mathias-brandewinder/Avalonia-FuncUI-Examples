@@ -3,81 +3,75 @@ namespace PsychicBarnacle
 module AsyncOperation =
 
     open System
-    open System.Threading
-
     open Elmish
 
+    open Avalonia
     open Avalonia.Controls
-    open Avalonia.Layout
-    open Avalonia.Threading
+    open Avalonia.Media
 
-    open Avalonia.FuncUI
     open Avalonia.FuncUI.DSL
     open Avalonia.FuncUI.Types
 
-    module AsyncCalls =
-
-        // The trick here was to use
-        // Program.runWithAvaloniaSyncDispatch () in Program,
-        // instead of Program.run.
-        let increment (x: int) =
-            async {
-                do! Async.Sleep 2000
-                return x + 1
-                }
-
-        let decrement (x: int) =
-            async {
-                do! Async.Sleep 2000
-                return x - 1
-                }
+    let respondToRequest (request: string) =
+        task {
+            // Create an artificial delay
+            do! Async.Sleep 1000
+            return $"{DateTime.Now}: Request was {request}"
+            }
 
     type State = {
-        Number: int
+        Request: string
+        Response: string
         }
 
     type Msg =
-        | StartedIncrement
-        | CompletedIncrement of int
-        | Decrement
+        | UpdateRequest of string
+        | SendRequest
+        | ReceivedResponse of string
 
     let init (): State * Cmd<Msg> =
         {
-            Number = 0
+            Request = ""
+            Response = ""
         },
         Cmd.none
 
     let update (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | StartedIncrement ->
-            let cmd = Cmd.OfAsync.perform (AsyncCalls.increment) state.Number CompletedIncrement
-            state,
-            cmd
-        | CompletedIncrement value ->
-            { state with Number = value },
-            Cmd.none
-        | Decrement ->
-            { state with Number = state.Number - 1 },
-            Cmd.none
+        | UpdateRequest text ->
+            { state with Request = text }, Cmd.none
+        | SendRequest ->
+            let deferredCmd =
+                Cmd.OfTask.perform
+                    respondToRequest
+                    state.Request
+                    ReceivedResponse
+            state, deferredCmd
+        | ReceivedResponse response ->
+            { state with Response = response }, Cmd.none
 
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
-        DockPanel.create [
-            DockPanel.children [
-                StackPanel.create [
-                    StackPanel.children [
-                        TextBlock.create [
-                            TextBlock.text $"{state.Number}"
-                            ]
-                        Button.create [
-                            Button.content "Increment asynchronously, with delay"
-                            Button.onClick (fun _ -> StartedIncrement |> dispatch)
-                            ]
-                        Button.create [
-                            Button.content "Decrement, synchronous / immediate"
-                            Button.onClick (fun _ -> Decrement |> dispatch)
-                            ]
-                        ]
+        StackPanel.create [
+            StackPanel.children [
+                TextBox.create [
+                    TextBox.watermark "Type your request"
+                    TextBox.text $"{state.Request}"
+                    TextBox.onTextChanged (fun text ->
+                        text
+                        |> UpdateRequest
+                        |> dispatch
+                        )
+                    ]
+                Button.create [
+                    Button.content "Send Request"
+                    Button.onClick (fun _ ->
+                        SendRequest
+                        |> dispatch
+                        )
+                    ]
+                TextBlock.create [
+                    TextBlock.text state.Response
                     ]
                 ]
             ]

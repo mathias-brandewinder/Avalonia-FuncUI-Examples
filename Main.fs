@@ -2,8 +2,6 @@ namespace PsychicBarnacle
 
 module Main =
 
-    open System
-
     open Elmish
 
     open Avalonia.Controls
@@ -16,35 +14,52 @@ module Main =
     type State = {
         ListSelection: ListSelection.State
         AsyncOperation: AsyncOperation.State
+        TreeSelection: TreeSelection.State
+        Layout: Layout.State
         }
 
     type Msg =
         | ListSelection of ListSelection.Msg
         | AsyncOperation of AsyncOperation.Msg
+        | Tree of TreeSelection.Msg
 
     let init (): State * Cmd<Msg> =
+
         let listSelectionState, _ = ListSelection.init ()
         let asyncOperationState, _ = AsyncOperation.init ()
+        let treeState, _ = TreeSelection.init ()
+        let layout = Layout.init ()
+
         {
             ListSelection = listSelectionState
             AsyncOperation = asyncOperationState
+            TreeSelection = treeState
+            Layout = layout
         },
         Cmd.none
 
     let update (window: Window) (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
         | ListSelection msg ->
-            let updatedState, _ = ListSelection.update msg state.ListSelection
+            let updatedState, cmd = ListSelection.update msg state.ListSelection
             { state with
                 ListSelection = updatedState
             },
-            Cmd.none
+            Cmd.map ListSelection cmd
+
         | AsyncOperation msg ->
-            let updatedState, followUpCommand = AsyncOperation.update msg state.AsyncOperation
+            let updatedState, cmd = AsyncOperation.update msg state.AsyncOperation
             { state with
                 AsyncOperation = updatedState
             },
-            Cmd.batch [ (Cmd.map AsyncOperation followUpCommand) ]
+            Cmd.map AsyncOperation cmd
+
+        | Tree msg ->
+            let updatedState, cmd = TreeSelection.update msg state.TreeSelection
+            {
+                state with TreeSelection = updatedState
+            },
+            Cmd.map Tree cmd
 
     let view (state: State) (dispatch: Msg -> unit): IView =
 
@@ -58,12 +73,19 @@ module Main =
                     TabItem.header "Async Operations"
                     TabItem.content (AsyncOperation.view state.AsyncOperation (AsyncOperation >> dispatch))
                     ]
+                TabItem.create [
+                    TabItem.header "Tree Selection"
+                    TabItem.content (TreeSelection.view state.TreeSelection (Tree >> dispatch))
+                    ]
+                TabItem.create [
+                    TabItem.header "Layout"
+                    TabItem.content (Layout.view state.Layout)
+                    ]
             ]
 
         // main dock panel
         DockPanel.create [
             DockPanel.children [
-                // left: item selector
                 DockPanel.create [
                     DockPanel.children [
                         TabControl.create [

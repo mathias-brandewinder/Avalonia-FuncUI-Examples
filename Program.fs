@@ -26,15 +26,15 @@ module Shell =
 
             base.Title <- $"Application {version}"
 
-            base.Width <- 1200.0
-            base.Height <- 800.0
-            base.MinWidth <- 1200.0
-            base.MinHeight <- 800.0
+            base.Width <- 800
+            base.Height <- 600
+            base.MinWidth <- 800
+            base.MinHeight <- 600
 
             Elmish.Program.mkProgram Main.init (Main.update this) Main.view
             |> Program.withHost this
+            // Use this instead of Program.run to enable Cmd.OfAsync, Cmd.OfTask
             |> Program.runWithAvaloniaSyncDispatch ()
-            // |> Program.run
 
 type App() =
     inherit Application()
