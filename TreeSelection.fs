@@ -18,6 +18,39 @@ module TreeSelection =
         Branches: seq<Node>
         }
 
+    let testTree =
+        {
+            Name = "Root"
+            Branches =
+                [|
+                    {
+                        Name = "Alpha"
+                        Branches = [|
+                            { Name = "Alpha Alpha"; Branches = [||] }
+                            { Name = "Alpha Bravo"; Branches = [||] }
+                            { Name = "Alpha Charlie"; Branches = [||] }
+                            |]
+                    }
+                    {
+                        Name = "Bravo"
+                        Branches = [| |]
+                    }
+                    {
+                        Name = "Charlie"
+                        Branches = [|
+                            { Name = "Charlie Alpha"; Branches = [||] }
+                            {
+                                Name = "Charlie Bravo"
+                                Branches = [|
+                                    { Name = "Charlie Bravo Alpha"; Branches = [||] }
+                                    { Name = "Charlie Bravo Bravo"; Branches = [||] }
+                                    |]
+                            }
+                            |]
+                    }
+                |]
+        }
+
     type State = {
         Tree: Node[]
         }
@@ -27,33 +60,9 @@ module TreeSelection =
 
     let init (): State * Cmd<Msg> =
         {
-            Tree = [|
-                {
-                    Name = "Alpha"
-                    Branches = [|
-                        { Name = "Alpha 1"; Branches = [||] }
-                        { Name = "Alpha 2"; Branches = [||] }
-                        { Name = "Alpha 3"; Branches = [||] }
-                        |]
-                }
-                {
-                    Name = "Bravo"
-                    Branches = [| |]
-                }
-                {
-                    Name = "Charlie"
-                    Branches = [|
-                        { Name = "Charlie 1"; Branches = [||] }
-                        {
-                            Name = "Charlie 2"
-                            Branches = [|
-                                { Name = "Charlie 2 1"; Branches = [||] }
-                                { Name = "Charlie 2 2"; Branches = [||] }
-                                |]
-                        }
-                        |]
-                }
-                |]
+            Tree =
+                testTree.Branches
+                |> Array.ofSeq
         },
         Cmd.none
 
