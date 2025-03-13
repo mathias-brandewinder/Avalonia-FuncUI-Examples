@@ -13,46 +13,58 @@ module TreeSelection =
     open Avalonia.FuncUI.DSL
     open Avalonia.FuncUI.Types
 
-    type Node = {
-        Name: string
-        Branches: seq<Node>
+    type Node<'T> = {
+        Item: 'T
+        Branches: seq<Node<'T>>
         }
+
+    [<RequireQualifiedAccess>]
+    module Tree =
+
+        let rec map (f: 'T -> 'U) (node: Node<'T>): Node<'U> =
+            {
+                Item = f node.Item
+                Branches =
+                    node.Branches
+                    |> Seq.map (map f)
+            }
 
     let testTree =
         {
-            Name = "Root"
+            Item = "Root"
             Branches =
                 [|
                     {
-                        Name = "Alpha"
+                        Item = "Alpha"
                         Branches = [|
-                            { Name = "Alpha Alpha"; Branches = [||] }
-                            { Name = "Alpha Bravo"; Branches = [||] }
-                            { Name = "Alpha Charlie"; Branches = [||] }
+                            { Item = "Alpha Alpha"; Branches = [||] }
+                            { Item = "Alpha Bravo"; Branches = [||] }
+                            { Item = "Alpha Charlie"; Branches = [||] }
                             |]
                     }
                     {
-                        Name = "Bravo"
+                        Item = "Bravo"
                         Branches = [| |]
                     }
                     {
-                        Name = "Charlie"
+                        Item = "Charlie"
                         Branches = [|
-                            { Name = "Charlie Alpha"; Branches = [||] }
+                            { Item = "Charlie Alpha"; Branches = [||] }
                             {
-                                Name = "Charlie Bravo"
+                                Item = "Charlie Bravo"
                                 Branches = [|
-                                    { Name = "Charlie Bravo Alpha"; Branches = [||] }
-                                    { Name = "Charlie Bravo Bravo"; Branches = [||] }
+                                    { Item = "Charlie Bravo Alpha"; Branches = [||] }
+                                    { Item = "Charlie Bravo Bravo"; Branches = [||] }
                                     |]
                             }
                             |]
                     }
                 |]
         }
+        |> Tree.map (fun name -> "Changed: " + name)
 
     type State = {
-        Tree: Node
+        Tree: Node<string>
         }
 
     type Msg =
@@ -68,7 +80,7 @@ module TreeSelection =
         match msg with
         | TODO -> state, Cmd.none
 
-    let nodeView: Node -> IView =
+    let nodeView: Node<string> -> IView =
         fun node ->
             DockPanel.create [
                 DockPanel.children [
@@ -76,7 +88,7 @@ module TreeSelection =
                         CheckBox.dock Dock.Left
                         ]
                     TextBlock.create [
-                        TextBlock.text $"{node.Name}"
+                        TextBlock.text $"{node.Item}"
                         TextBlock.verticalAlignment VerticalAlignment.Center
                         ]
                     ]
@@ -89,7 +101,7 @@ module TreeSelection =
                     TreeView.isOpen true
                     TreeView.dataItems state.Tree.Branches
                     TreeView.itemTemplate(
-                        DataTemplateView<Node>.create(
+                        DataTemplateView<Node<string>>.create(
                             (fun node -> node.Branches),
                             nodeView
                             )
