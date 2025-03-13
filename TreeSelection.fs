@@ -52,7 +52,7 @@ module TreeSelection =
         }
 
     type State = {
-        Tree: Node[]
+        Tree: Node
         }
 
     type Msg =
@@ -60,9 +60,7 @@ module TreeSelection =
 
     let init (): State * Cmd<Msg> =
         {
-            Tree =
-                testTree.Branches
-                |> Array.ofSeq
+            Tree = testTree
         },
         Cmd.none
 
@@ -89,7 +87,7 @@ module TreeSelection =
             DockPanel.children [
                 TreeView.create [
                     TreeView.isOpen true
-                    TreeView.dataItems state.Tree
+                    TreeView.dataItems state.Tree.Branches
                     TreeView.itemTemplate(
                         DataTemplateView<Node>.create(
                             (fun node -> node.Branches),
