@@ -65,20 +65,24 @@ module TreeSelection =
 
     type State = {
         Tree: Node<string>
+        SelectedNode: Option<Node<string>>
         }
 
     type Msg =
-        | TODO
+        | SelectedNodeChanged of Option<Node<string>>
 
     let init (): State * Cmd<Msg> =
         {
             Tree = testTree
+            SelectedNode = None
         },
         Cmd.none
 
     let update (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | TODO -> state, Cmd.none
+        | SelectedNodeChanged selectedNode ->
+            { state with SelectedNode = selectedNode },
+            Cmd.none
 
     let nodeView: Node<string> -> IView =
         fun node ->
@@ -97,14 +101,69 @@ module TreeSelection =
     let view (state: State) (dispatch: Msg -> unit): IView =
         DockPanel.create [
             DockPanel.children [
-                TreeView.create [
-                    TreeView.isOpen true
-                    TreeView.dataItems state.Tree.Branches
-                    TreeView.itemTemplate(
-                        DataTemplateView<Node<string>>.create(
-                            (fun node -> node.Branches),
-                            nodeView
-                            )
+                // Left: Tree selection
+                Border.create [
+                    Border.dock Dock.Left
+                    Border.width 250
+                    Border.child (
+                        TreeView.create [
+                            TreeView.isOpen true
+                            TreeView.dataItems state.Tree.Branches
+                            TreeView.selectedItem (
+                                match state.SelectedNode with
+                                | None -> null
+                                | Some node ->
+                                    state.Tree.Branches
+                                    |> Seq.tryFind (fun item -> item = node)
+                                    |> function
+                                        | None -> null
+                                        | Some item -> box item
+                                )
+                            TreeView.onSelectedItemChanged (
+                                (fun selected ->
+                                    match selected with
+                                    | :? Node<string> as selectedItem ->
+                                        match state.SelectedNode with
+                                        | None ->
+                                            selectedItem
+                                            |> Some
+                                            |> SelectedNodeChanged
+                                            |> dispatch
+                                        | Some currentlySelected ->
+                                            if currentlySelected <> selectedItem
+                                            then
+                                                selectedItem
+                                                |> Some
+                                                |> SelectedNodeChanged
+                                                |> dispatch
+                                            else ignore ()
+                                    | _ ->
+                                        None
+                                        |> SelectedNodeChanged
+                                        |> dispatch
+                                    ),
+                                SubPatchOptions.Always
+                                )
+                            TreeView.itemTemplate(
+                                DataTemplateView<Node<string>>.create(
+                                    (fun node -> node.Branches),
+                                    nodeView
+                                    )
+                                )
+                            ]
+                        )
+                    ]
+
+                // Right: Selected Node
+                Border.create [
+                    Border.child (
+                        TextBlock.create [
+                            TextBlock.text (
+                                match state.SelectedNode with
+                                | None -> "Nothing selected"
+                                | Some node -> $"{node.Item}"
+                                )
+                            ]
                         )
                     ]
                 ]
