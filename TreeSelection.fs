@@ -28,63 +28,99 @@ module TreeSelection =
                     node.Branches
                     |> Seq.map (map f)
             }
+        let rec tryFind (f: 'T -> bool) (node: Node<'T>): Option<Node<'T>> =
+            if f node.Item
+            then Some node
+            else
+                node.Branches
+                |> Seq.tryFind (fun child ->
+                    tryFind f child
+                    |> Option.isSome
+                    )
 
-    let testTree =
+    type Entity = {
+        ID: Guid
+        Name: string
+        }
+
+    let testTree: Node<Entity> =
         {
-            Item = "Root"
+            Item = { ID = Guid.NewGuid (); Name = "Root" }
             Branches =
                 [|
                     {
-                        Item = "Alpha"
+                        Item = { ID = Guid.NewGuid(); Name = "Alpha" }
                         Branches = [|
-                            { Item = "Alpha Alpha"; Branches = [||] }
-                            { Item = "Alpha Bravo"; Branches = [||] }
-                            { Item = "Alpha Charlie"; Branches = [||] }
+                            { Item = { ID = Guid.NewGuid(); Name = "Alpha Alpha" }; Branches = [||] }
+                            { Item = { ID = Guid.NewGuid(); Name = "Alpha Bravo" }; Branches = [||] }
+                            { Item = { ID = Guid.NewGuid(); Name = "Alpha Charlie"} ; Branches = [||] }
                             |]
                     }
                     {
-                        Item = "Bravo"
+                        Item = { ID = Guid.NewGuid(); Name = "Bravo" }
                         Branches = [| |]
                     }
                     {
-                        Item = "Charlie"
+                        Item = { ID = Guid.NewGuid(); Name = "Charlie" }
                         Branches = [|
-                            { Item = "Charlie Alpha"; Branches = [||] }
+                            { Item = { ID = Guid.NewGuid(); Name = "Charlie Alpha" }; Branches = [||] }
                             {
-                                Item = "Charlie Bravo"
+                                Item = { ID = Guid.NewGuid(); Name = "Charlie Bravo" }
                                 Branches = [|
-                                    { Item = "Charlie Bravo Alpha"; Branches = [||] }
-                                    { Item = "Charlie Bravo Bravo"; Branches = [||] }
+                                    { Item = { ID = Guid.NewGuid(); Name = "Charlie Bravo Alpha" }; Branches = [||] }
+                                    { Item = { ID = Guid.NewGuid(); Name = "Charlie Bravo Bravo" }; Branches = [||] }
                                     |]
                             }
                             |]
                     }
                 |]
         }
-        |> Tree.map (fun name -> "Changed: " + name)
+        |> Tree.map (fun node -> { node with Name = "Changed: " + node.Name })
 
     type State = {
-        Tree: Node<string>
-        SelectedNode: Option<Node<string>>
+        Tree: Node<Entity>
+        SelectedNodeID: Option<Guid>
         }
+        with
+        member this.SelectedNode () =
+            this.SelectedNodeID
+            |> Option.bind (fun selectedID ->
+                this.Tree
+                |> Tree.tryFind (fun node -> node.ID = selectedID)
+                )
 
     type Msg =
-        | SelectedNodeChanged of Option<Node<string>>
+        | SelectedNodeChanged of Option<Guid>
+        | SelectedNodeRenamed of string
 
     let init (): State * Cmd<Msg> =
         {
             Tree = testTree
-            SelectedNode = None
+            SelectedNodeID = None
         },
         Cmd.none
 
     let update (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
         | SelectedNodeChanged selectedNode ->
-            { state with SelectedNode = selectedNode },
+            { state with SelectedNodeID = selectedNode },
             Cmd.none
+        | SelectedNodeRenamed name ->
+            match state.SelectedNodeID with
+            | None -> state, Cmd.none
+            | Some selectedNode ->
+                { state with
+                    Tree =
+                        state.Tree
+                        |> Tree.map (fun node ->
+                            if node.ID = selectedNode
+                            then { node with Name = name }
+                            else node
+                            )
+                },
+                Cmd.none
 
-    let nodeView: Node<string> -> IView =
+    let nodeView: Node<Entity> -> IView =
         fun node ->
             DockPanel.create [
                 DockPanel.children [
@@ -92,7 +128,7 @@ module TreeSelection =
                         CheckBox.dock Dock.Left
                         ]
                     TextBlock.create [
-                        TextBlock.text $"{node.Item}"
+                        TextBlock.text $"{node.Item.Name}"
                         TextBlock.verticalAlignment VerticalAlignment.Center
                         ]
                     ]
@@ -110,29 +146,25 @@ module TreeSelection =
                             TreeView.isOpen true
                             TreeView.dataItems state.Tree.Branches
                             TreeView.selectedItem (
-                                match state.SelectedNode with
-                                | None -> null
-                                | Some node ->
-                                    state.Tree.Branches
-                                    |> Seq.tryFind (fun item -> item = node)
-                                    |> function
-                                        | None -> null
-                                        | Some item -> box item
+                                state.SelectedNode ()
+                                |> function
+                                    | None -> null
+                                    | Some item -> box item
                                 )
                             TreeView.onSelectedItemChanged (
                                 (fun selected ->
                                     match selected with
-                                    | :? Node<string> as selectedItem ->
-                                        match state.SelectedNode with
+                                    | :? Node<Entity> as selectedItem ->
+                                        match state.SelectedNodeID with
                                         | None ->
-                                            selectedItem
+                                            selectedItem.Item.ID
                                             |> Some
                                             |> SelectedNodeChanged
                                             |> dispatch
                                         | Some currentlySelected ->
-                                            if currentlySelected <> selectedItem
+                                            if currentlySelected <> selectedItem.Item.ID
                                             then
-                                                selectedItem
+                                                selectedItem.Item.ID
                                                 |> Some
                                                 |> SelectedNodeChanged
                                                 |> dispatch
@@ -145,7 +177,7 @@ module TreeSelection =
                                 SubPatchOptions.Always
                                 )
                             TreeView.itemTemplate(
-                                DataTemplateView<Node<string>>.create(
+                                DataTemplateView<Node<Entity>>.create(
                                     (fun node -> node.Branches),
                                     nodeView
                                     )
@@ -157,11 +189,22 @@ module TreeSelection =
                 // Right: Selected Node
                 Border.create [
                     Border.child (
-                        TextBlock.create [
-                            TextBlock.text (
-                                match state.SelectedNode with
-                                | None -> "Nothing selected"
-                                | Some node -> $"{node.Item}"
+                        TextBox.create [
+                            TextBox.text (
+                                state.SelectedNode ()
+                                |> Option.map (fun node -> node.Item.Name)
+                                |> Option.defaultValue "Nothing selected"
+                                )
+                            TextBox.onTextChanged (fun text ->
+                                let selectedNode = state.SelectedNode ()
+                                match selectedNode with
+                                | None -> ignore ()
+                                | Some node ->
+                                    if node.Item.Name <> text
+                                    then
+                                        text
+                                        |> SelectedNodeRenamed
+                                        |> dispatch
                                 )
                             ]
                         )
