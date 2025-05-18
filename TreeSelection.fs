@@ -75,7 +75,7 @@ module TreeSelection =
                     }
                 |]
         }
-        |> Tree.map (fun node -> { node with Name = "Changed: " + node.Name })
+        // |> Tree.map (fun node -> { node with Name = "Changed: " + node.Name })
 
     type State = {
         Tree: Node<Entity>
@@ -146,10 +146,9 @@ module TreeSelection =
                             TreeView.isOpen true
                             TreeView.dataItems state.Tree.Branches
                             TreeView.selectedItem (
-                                state.SelectedNode ()
-                                |> function
-                                    | None -> null
-                                    | Some item -> box item
+                                match state.SelectedNode () with
+                                | None -> null
+                                | Some item -> box item
                                 )
                             TreeView.onSelectedItemChanged (
                                 (fun selected ->
