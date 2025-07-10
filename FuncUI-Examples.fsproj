@@ -10,6 +10,7 @@
     <Compile Include="ListSelection.fs" />
     <Compile Include="Layout.fs" />
     <Compile Include="TreeSelection.fs" />
+    <Compile Include="Components.fs" />
     <Compile Include="Main.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

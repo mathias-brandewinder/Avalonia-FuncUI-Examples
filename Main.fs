@@ -81,6 +81,10 @@ module Main =
                     TabItem.header "Layout"
                     TabItem.content (Layout.view state.Layout)
                     ]
+                TabItem.create [
+                    TabItem.header "Components"
+                    TabItem.content (Components.view ())
+                    ]
             ]
 
         // main dock panel

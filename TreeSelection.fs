@@ -28,15 +28,19 @@ module TreeSelection =
                     node.Branches
                     |> Seq.map (map f)
             }
+
+        let rec nodes (node: Node<'T>): seq<Node<'T>> =
+            seq {
+                yield node
+                yield!
+                    node.Branches
+                    |> Seq.collect nodes
+                }
+
         let rec tryFind (f: 'T -> bool) (node: Node<'T>): Option<Node<'T>> =
-            if f node.Item
-            then Some node
-            else
-                node.Branches
-                |> Seq.tryFind (fun child ->
-                    tryFind f child
-                    |> Option.isSome
-                    )
+            node
+            |> nodes
+            |> Seq.tryFind (fun node -> f node.Item)
 
     type Entity = {
         ID: Guid
