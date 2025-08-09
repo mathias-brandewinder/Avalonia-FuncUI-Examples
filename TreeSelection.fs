@@ -79,14 +79,13 @@ module TreeSelection =
                     }
                 |]
         }
-        // |> Tree.map (fun node -> { node with Name = "Changed: " + node.Name })
 
     type State = {
         Tree: Node<Entity>
         SelectedNodeID: Option<Guid>
         }
         with
-        member this.SelectedNode () =
+        member this.SelectedNode =
             this.SelectedNodeID
             |> Option.bind (fun selectedID ->
                 this.Tree
@@ -94,7 +93,7 @@ module TreeSelection =
                 )
 
     type Msg =
-        | SelectedNodeChanged of Option<Guid>
+        | SelectedNodeIDChanged of Option<Guid>
         | SelectedNodeRenamed of string
 
     let init (): State * Cmd<Msg> =
@@ -106,7 +105,7 @@ module TreeSelection =
 
     let update (msg: Msg) (state: State): State * Cmd<Msg> =
         match msg with
-        | SelectedNodeChanged selectedNode ->
+        | SelectedNodeIDChanged selectedNode ->
             { state with SelectedNodeID = selectedNode },
             Cmd.none
         | SelectedNodeRenamed name ->
@@ -138,6 +137,42 @@ module TreeSelection =
                     ]
                 ]
 
+    module SelectedNode =
+
+        let view (state: State) dispatch: IView =
+            DockPanel.create [
+                DockPanel.children [
+                    TextBlock.create [
+                        TextBlock.dock Dock.Top
+                        TextBlock.text (
+                            match state.SelectedNodeID with
+                            | None -> "No ID"
+                            | Some id -> id.ToString()
+                            )
+                        ]
+                    TextBox.create [
+                        TextBox.text (
+                            state.SelectedNode
+                            |> Option.map (fun node -> node.Item.Name)
+                            |> Option.defaultValue "Nothing selected"
+                            )
+                        TextBox.onTextChanged (
+                            fun text ->
+                                match state.SelectedNode with
+                                | None -> ignore ()
+                                | Some node ->
+                                    if node.Item.Name <> text
+                                    then
+                                        text
+                                        |> SelectedNodeRenamed
+                                        |> dispatch
+                            ,
+                            SubPatchOptions.OnChangeOf (state.SelectedNodeID)
+                            )
+                        ]
+                    ]
+                ]
+
     let view (state: State) (dispatch: Msg -> unit): IView =
         DockPanel.create [
             DockPanel.children [
@@ -150,7 +185,7 @@ module TreeSelection =
                             TreeView.isOpen true
                             TreeView.dataItems state.Tree.Branches
                             TreeView.selectedItem (
-                                match state.SelectedNode () with
+                                match state.SelectedNode with
                                 | None -> null
                                 | Some item -> box item
                                 )
@@ -162,19 +197,19 @@ module TreeSelection =
                                         | None ->
                                             selectedItem.Item.ID
                                             |> Some
-                                            |> SelectedNodeChanged
+                                            |> SelectedNodeIDChanged
                                             |> dispatch
                                         | Some currentlySelected ->
                                             if currentlySelected <> selectedItem.Item.ID
                                             then
                                                 selectedItem.Item.ID
                                                 |> Some
-                                                |> SelectedNodeChanged
+                                                |> SelectedNodeIDChanged
                                                 |> dispatch
                                             else ignore ()
                                     | _ ->
                                         None
-                                        |> SelectedNodeChanged
+                                        |> SelectedNodeIDChanged
                                         |> dispatch
                                     ),
                                 SubPatchOptions.Always
@@ -192,24 +227,7 @@ module TreeSelection =
                 // Right: Selected Node
                 Border.create [
                     Border.child (
-                        TextBox.create [
-                            TextBox.text (
-                                state.SelectedNode ()
-                                |> Option.map (fun node -> node.Item.Name)
-                                |> Option.defaultValue "Nothing selected"
-                                )
-                            TextBox.onTextChanged (fun text ->
-                                let selectedNode = state.SelectedNode ()
-                                match selectedNode with
-                                | None -> ignore ()
-                                | Some node ->
-                                    if node.Item.Name <> text
-                                    then
-                                        text
-                                        |> SelectedNodeRenamed
-                                        |> dispatch
-                                )
-                            ]
+                        SelectedNode.view state dispatch
                         )
                     ]
                 ]
