@@ -52,7 +52,6 @@ module TreeSelection =
     let testGuid = Guid "d9a1bdf3-6451-47e2-b264-0c2f7888b438"
 
     let testTree: Node<Entity> =
-        let testGuid = Guid "d9a1bdf3-6451-47e2-b264-0c2f7888b438"
         {
             Item = { ID = Guid.NewGuid (); Name = "Root" }
             Branches =
@@ -126,7 +125,6 @@ module TreeSelection =
                 TreeRoot = updatedTree
             },
             Cmd.none
-
 
     module SelectedNode =
 
