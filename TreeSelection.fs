@@ -37,17 +37,20 @@ module TreeSelection =
                     |> Seq.collect nodes
                 }
 
-        let rec tryFind (f: 'T -> bool) (node: Node<'T>): Option<Node<'T>> =
+        let rec tryFind (predicate: 'T -> bool) (node: Node<'T>): Option<Node<'T>> =
             node
             |> nodes
-            |> Seq.tryFind (fun node -> f node.Item)
+            |> Seq.tryFind (fun node -> predicate node.Item)
 
     type Entity = {
         ID: Guid
         Name: string
         }
 
+    let testGuid = Guid "d9a1bdf3-6451-47e2-b264-0c2f7888b438"
+
     let testTree: Node<Entity> =
+        let testGuid = Guid "d9a1bdf3-6451-47e2-b264-0c2f7888b438"
         {
             Item = { ID = Guid.NewGuid (); Name = "Root" }
             Branches =
@@ -61,7 +64,7 @@ module TreeSelection =
                             |]
                     }
                     {
-                        Item = { ID = Guid.NewGuid(); Name = "Bravo" }
+                        Item = { ID = testGuid; Name = "Bravo" }
                         Branches = [| |]
                     }
                     {
@@ -81,25 +84,25 @@ module TreeSelection =
         }
 
     type State = {
-        Tree: Node<Entity>
+        TreeRoot: Node<Entity>
         SelectedNodeID: Option<Guid>
         }
         with
         member this.SelectedNode =
             this.SelectedNodeID
             |> Option.bind (fun selectedID ->
-                this.Tree
+                this.TreeRoot
                 |> Tree.tryFind (fun node -> node.ID = selectedID)
                 )
 
     type Msg =
         | SelectedNodeIDChanged of Option<Guid>
-        | SelectedNodeRenamed of string
+        | SelectedNodeRenamed of Guid * string
 
     let init (): State * Cmd<Msg> =
         {
-            Tree = testTree
-            SelectedNodeID = None
+            TreeRoot = testTree
+            SelectedNodeID = Some testGuid
         },
         Cmd.none
 
@@ -108,69 +111,121 @@ module TreeSelection =
         | SelectedNodeIDChanged selectedNode ->
             { state with SelectedNodeID = selectedNode },
             Cmd.none
-        | SelectedNodeRenamed name ->
-            match state.SelectedNodeID with
-            | None -> state, Cmd.none
-            | Some selectedNode ->
-                { state with
-                    Tree =
-                        state.Tree
-                        |> Tree.map (fun node ->
-                            if node.ID = selectedNode
-                            then { node with Name = name }
-                            else node
-                            )
-                },
-                Cmd.none
 
-    let nodeView: Node<Entity> -> IView =
-        fun node ->
-            DockPanel.create [
-                DockPanel.children [
-                    CheckBox.create [
-                        CheckBox.dock Dock.Left
-                        ]
-                    TextBlock.create [
-                        TextBlock.text $"{node.Item.Name}"
-                        TextBlock.verticalAlignment VerticalAlignment.Center
-                        ]
-                    ]
-                ]
+        | SelectedNodeRenamed (nodeID, name) ->
+            { state with
+                TreeRoot =
+                    state.TreeRoot
+                    |> Tree.map (fun node ->
+                        if node.ID = nodeID
+                        then { node with Name = name }
+                        else node
+                        )
+            },
+            Cmd.none
 
     module SelectedNode =
 
         let view (state: State) dispatch: IView =
-            DockPanel.create [
-                DockPanel.children [
-                    TextBlock.create [
-                        TextBlock.dock Dock.Top
-                        TextBlock.text (
-                            match state.SelectedNodeID with
-                            | None -> "No ID"
-                            | Some id -> id.ToString()
-                            )
+            match state.SelectedNodeID with
+            | None ->
+                DockPanel.create []
+            | Some nodeID ->
+                let node = state.SelectedNode |> Option.get
+                DockPanel.create [
+                    DockPanel.children [
+                        TextBlock.create [
+                            TextBlock.dock Dock.Top
+                            TextBlock.text (nodeID.ToString ())
+                            ]
+                        DockPanel.create [
+                            DockPanel.children [
+                                TextBox.create [
+                                    TextBox.text (node.Item.Name)
+                                    TextBox.onTextChanged (
+                                        fun text ->
+                                            if node.Item.Name <> text
+                                            then
+                                                (node.Item.ID, text)
+                                                |> SelectedNodeRenamed
+                                                |> dispatch
+                                        ,
+                                        SubPatchOptions.OnChangeOf state.SelectedNodeID
+                                        )
+                                    ]
+                                ]
+                            ]
                         ]
-                    TextBox.create [
-                        TextBox.text (
-                            state.SelectedNode
-                            |> Option.map (fun node -> node.Item.Name)
-                            |> Option.defaultValue "Nothing selected"
-                            )
-                        TextBox.onTextChanged (
-                            fun text ->
-                                match state.SelectedNode with
-                                | None -> ignore ()
-                                | Some node ->
-                                    if node.Item.Name <> text
-                                    then
-                                        text
-                                        |> SelectedNodeRenamed
-                                        |> dispatch
-                            ,
-                            SubPatchOptions.OnChangeOf (state.SelectedNodeID)
-                            )
+
+                    ]
+                |> View.withKey (nodeID.ToString ())
+                :> IView
+
+    module TreeSelector =
+
+        module Node =
+
+            let view (node: Node<Entity>) dispatch: IView =
+                DockPanel.create [
+                    DockPanel.children [
+                        TextBlock.create [
+                            TextBlock.dock Dock.Top
+                            TextBlock.text $"{node.Item.Name}"
+                            ]
+                        TextBlock.create [
+                            TextBlock.fontSize 10
+                            TextBlock.text $"{node.Item.ID}"
+                            ]
                         ]
                     ]
+                |> View.withKey (node.Item.ID.ToString ())
+                :> IView
+
+        let view (state: State) dispatch: IView =
+            TreeView.create [
+                TreeView.dataItems state.TreeRoot.Branches
+                TreeView.selectedItem (
+                    match state.SelectedNodeID with
+                    | None -> null
+                    | Some selectedID ->
+                        state.TreeRoot
+                        |> Tree.tryFind (fun node -> node.ID = selectedID)
+                        |> function
+                            | None -> null
+                            | Some item -> box item
+                    )
+                TreeView.onSelectedItemChanged (
+                    (fun selected ->
+                        match selected with
+                        | :? Node<Entity> as selectedItem ->
+                            match state.SelectedNodeID with
+                            | None ->
+                                selectedItem.Item.ID
+                                |> Some
+                                |> SelectedNodeIDChanged
+                                |> dispatch
+                            | Some currentlySelected ->
+                                if currentlySelected <> selectedItem.Item.ID
+                                then
+                                    selectedItem.Item.ID
+                                    |> Some
+                                    |> SelectedNodeIDChanged
+                                    |> dispatch
+                                else ignore ()
+                        | _ ->
+                            None
+                            |> SelectedNodeIDChanged
+                            |> dispatch
+                        ),
+                    SubPatchOptions.Always
+                    )
+
+                TreeView.itemTemplate(
+                    DataTemplateView<Node<Entity>>.create (
+                        (fun node -> node.Branches),
+                        (fun node -> Node.view node dispatch)
+                        )
+                    )
                 ]
 
     let view (state: State) (dispatch: Msg -> unit): IView =
@@ -181,46 +236,7 @@ module TreeSelection =
                     Border.dock Dock.Left
                     Border.width 250
                     Border.child (
-                        TreeView.create [
-                            TreeView.isOpen true
-                            TreeView.dataItems state.Tree.Branches
-                            TreeView.selectedItem (
-                                match state.SelectedNode with
-                                | None -> null
-                                | Some item -> box item
-                                )
-                            TreeView.onSelectedItemChanged (
-                                (fun selected ->
-                                    match selected with
-                                    | :? Node<Entity> as selectedItem ->
-                                        match state.SelectedNodeID with
-                                        | None ->
-                                            selectedItem.Item.ID
-                                            |> Some
-                                            |> SelectedNodeIDChanged
-                                            |> dispatch
-                                        | Some currentlySelected ->
-                                            if currentlySelected <> selectedItem.Item.ID
-                                            then
-                                                selectedItem.Item.ID
-                                                |> Some
-                                                |> SelectedNodeIDChanged
-                                                |> dispatch
-                                            else ignore ()
-                                    | _ ->
-                                        None
-                                        |> SelectedNodeIDChanged
-                                        |> dispatch
-                                    ),
-                                SubPatchOptions.Always
-                                )
-                            TreeView.itemTemplate(
-                                DataTemplateView<Node<Entity>>.create(
-                                    (fun node -> node.Branches),
-                                    nodeView
-                                    )
-                                )
-                            ]
+                        TreeSelector.view state dispatch
                         )
                     ]
 
