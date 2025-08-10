@@ -29,17 +29,19 @@ module TreeSelection =
                     |> Seq.map (map f)
             }
 
-        let rec nodes (node: Node<'T>): seq<Node<'T>> =
-            seq {
-                yield node
-                yield!
-                    node.Branches
-                    |> Seq.collect nodes
-                }
+        let toSeq (node: Node<'T>): seq<Node<'T>> =
+            let rec flatten (node: Node<'T>): seq<Node<'T>> =
+                seq {
+                    yield node
+                    yield!
+                        node.Branches
+                        |> Seq.collect flatten
+                    }
+            node |> flatten
 
-        let rec tryFind (predicate: 'T -> bool) (node: Node<'T>): Option<Node<'T>> =
+        let tryFind (predicate: 'T -> bool) (node: Node<'T>): Option<Node<'T>> =
             node
-            |> nodes
+            |> toSeq
             |> Seq.tryFind (fun node -> predicate node.Item)
 
     type Entity = {
@@ -113,16 +115,18 @@ module TreeSelection =
             Cmd.none
 
         | SelectedNodeRenamed (nodeID, name) ->
+            let updatedTree =
+                state.TreeRoot
+                |> Tree.map (fun node ->
+                    if node.ID = nodeID
+                    then { node with Name = name }
+                    else node
+                    )
             { state with
-                TreeRoot =
-                    state.TreeRoot
-                    |> Tree.map (fun node ->
-                        if node.ID = nodeID
-                        then { node with Name = name }
-                        else node
-                        )
+                TreeRoot = updatedTree
             },
             Cmd.none
+
 
     module SelectedNode =
 
@@ -146,11 +150,11 @@ module TreeSelection =
                                         fun text ->
                                             if node.Item.Name <> text
                                             then
-                                                (node.Item.ID, text)
+                                                (nodeID, text)
                                                 |> SelectedNodeRenamed
                                                 |> dispatch
                                         ,
-                                        SubPatchOptions.OnChangeOf state.SelectedNodeID
+                                        SubPatchOptions.Never
                                         )
                                     ]
                                 ]
@@ -188,11 +192,13 @@ module TreeSelection =
                     match state.SelectedNodeID with
                     | None -> null
                     | Some selectedID ->
-                        state.TreeRoot
-                        |> Tree.tryFind (fun node -> node.ID = selectedID)
+                        let selectedNode =
+                            state.TreeRoot
+                            |> Tree.tryFind (fun node -> node.ID = selectedID)
+                        selectedNode
                         |> function
                             | None -> null
-                            | Some item -> box item
+                            | Some node -> box node
                     )
                 TreeView.onSelectedItemChanged (
                     (fun selected ->
