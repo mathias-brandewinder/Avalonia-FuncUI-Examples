@@ -145,6 +145,7 @@ module TreeSelection =
                         DockPanel.create [
                             DockPanel.children [
                                 TextBox.create [
+                                    TextBox.dock Dock.Top
                                     TextBox.text (node.Item.Name)
                                     TextBox.onTextChanged (
                                         fun text ->
@@ -157,6 +158,7 @@ module TreeSelection =
                                         SubPatchOptions.Never
                                         )
                                     ]
+                                Border.create []
                                 ]
                             ]
                         ]
