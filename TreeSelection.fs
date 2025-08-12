@@ -15,7 +15,7 @@ module TreeSelection =
 
     type Node<'T> = {
         Item: 'T
-        Branches: seq<Node<'T>>
+        Branches: Node<'T> []
         }
 
     [<RequireQualifiedAccess>]
@@ -26,7 +26,7 @@ module TreeSelection =
                 Item = f node.Item
                 Branches =
                     node.Branches
-                    |> Seq.map (map f)
+                    |> Array.map (map f)
             }
 
         let toSeq (node: Node<'T>): seq<Node<'T>> =
@@ -225,10 +225,9 @@ module TreeSelection =
                         ),
                     SubPatchOptions.Always
                     )
-
                 TreeView.itemTemplate(
                     DataTemplateView<Node<Entity>>.create (
-                        (fun node -> node.Branches),
+                        (fun node -> node.Branches |> Seq.ofArray),
                         (fun node -> Node.view node dispatch)
                         )
                     )
