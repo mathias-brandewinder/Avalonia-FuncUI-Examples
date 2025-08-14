@@ -185,6 +185,20 @@ module TreeSelection =
                 |> View.withKey (node.Item.ID.ToString ())
                 :> IView
 
+            let view2 (node: Node<Entity>) dispatch: IView =
+                TreeViewItem.create [
+                    TreeViewItem.isExpanded true
+                    // TreeViewItem.itemTemplate (
+                    //     DataTemplateView<Node<Entity>>.create (
+                    //         (fun node -> node.Branches |> Seq.ofArray),
+                    //         (fun node -> view node dispatch)
+                    //         )
+                    //     )
+                    TreeViewItem.header (
+                        view node dispatch
+                        )
+                    ]
+
         let view (state: State) dispatch: IView =
             TreeView.create [
                 TreeView.dataItems state.TreeRoot.Branches
