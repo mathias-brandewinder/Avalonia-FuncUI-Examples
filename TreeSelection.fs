@@ -44,10 +44,24 @@ module TreeSelection =
             |> toSeq
             |> Seq.tryFind (fun node -> predicate node.Item)
 
+    [<CustomEquality; CustomComparison>]
     type Entity = {
         ID: Guid
         Name: string
         }
+        with
+        override this.Equals (obj: obj): bool =
+            match obj with
+            | :? Entity as e -> e.ID = this.ID
+            | _ -> false
+        override this.GetHashCode (): int =
+            this.ID.GetHashCode ()
+        interface IEquatable<Entity> with
+            member this.Equals (other: Entity): bool =
+                this.ID = other.ID
+        interface IComparable<Entity> with
+            member this.CompareTo (other: Entity): int =
+                this.ID.CompareTo(other.ID)
 
     let testGuid = Guid "d9a1bdf3-6451-47e2-b264-0c2f7888b438"
 
@@ -162,8 +176,8 @@ module TreeSelection =
                         ]
 
                     ]
-                |> View.withKey (nodeID.ToString ())
-                :> IView
+                // |> View.withKey node.Item.Name // (nodeID.ToString ())
+                // :> IView
 
     module TreeSelector =
 
@@ -200,52 +214,54 @@ module TreeSelection =
                     ]
 
         let view (state: State) dispatch: IView =
-            TreeView.create [
-                TreeView.dataItems state.TreeRoot.Branches
-                TreeView.selectedItem (
-                    match state.SelectedNodeID with
-                    | None -> null
-                    | Some selectedID ->
-                        let selectedNode =
-                            state.TreeRoot
-                            |> Tree.tryFind (fun node -> node.ID = selectedID)
-                        selectedNode
-                        |> function
-                            | None -> null
-                            | Some node -> box node
-                    )
-                TreeView.onSelectedItemChanged (
-                    (fun selected ->
-                        match selected with
-                        | :? Node<Entity> as selectedItem ->
-                            match state.SelectedNodeID with
-                            | None ->
-                                selectedItem.Item.ID
-                                |> Some
-                                |> SelectedNodeIDChanged
-                                |> dispatch
-                            | Some currentlySelected ->
-                                if currentlySelected <> selectedItem.Item.ID
-                                then
+            // View.createWithKey
+            //     (Guid.NewGuid().ToString())
+                TreeView.create [
+                    TreeView.dataItems state.TreeRoot.Branches
+                    TreeView.selectedItem (
+                        match state.SelectedNodeID with
+                        | None -> null
+                        | Some selectedID ->
+                            let selectedNode =
+                                state.TreeRoot
+                                |> Tree.tryFind (fun node -> node.ID = selectedID)
+                            selectedNode
+                            |> function
+                                | None -> null
+                                | Some node -> box node
+                        )
+                    TreeView.onSelectedItemChanged (
+                        (fun selected ->
+                            match selected with
+                            | :? Node<Entity> as selectedItem ->
+                                match state.SelectedNodeID with
+                                | None ->
                                     selectedItem.Item.ID
                                     |> Some
                                     |> SelectedNodeIDChanged
                                     |> dispatch
-                                else ignore ()
-                        | _ ->
-                            None
-                            |> SelectedNodeIDChanged
-                            |> dispatch
-                        ),
-                    SubPatchOptions.Always
-                    )
-                TreeView.itemTemplate(
-                    DataTemplateView<Node<Entity>>.create (
-                        (fun node -> node.Branches |> Seq.ofArray),
-                        (fun node -> Node.view node dispatch)
+                                | Some currentlySelected ->
+                                    if currentlySelected <> selectedItem.Item.ID
+                                    then
+                                        selectedItem.Item.ID
+                                        |> Some
+                                        |> SelectedNodeIDChanged
+                                        |> dispatch
+                                    else ignore ()
+                            | _ ->
+                                None
+                                |> SelectedNodeIDChanged
+                                |> dispatch
+                            ),
+                        SubPatchOptions.Always
                         )
-                    )
-                ]
+                    TreeView.itemTemplate(
+                        DataTemplateView<Node<Entity>>.create (
+                            (fun node -> node.Branches |> Seq.ofArray),
+                            (fun node -> Node.view node dispatch)
+                            )
+                        )
+                    ]
 
     let view (state: State) (dispatch: Msg -> unit): IView =
         DockPanel.create [
