@@ -65,26 +65,26 @@ module Main =
 
         let tabs: List<IView> =
             [
-                // TabItem.create [
-                //     TabItem.header "List Selection"
-                //     TabItem.content (ListSelection.view state.ListSelection (ListSelection >> dispatch))
-                //     ]
-                // TabItem.create [
-                //     TabItem.header "Async Operations"
-                //     TabItem.content (AsyncOperation.view state.AsyncOperation (AsyncOperation >> dispatch))
-                //     ]
+                TabItem.create [
+                    TabItem.header "List Selection"
+                    TabItem.content (ListSelection.view state.ListSelection (ListSelection >> dispatch))
+                    ]
+                TabItem.create [
+                    TabItem.header "Async Operations"
+                    TabItem.content (AsyncOperation.view state.AsyncOperation (AsyncOperation >> dispatch))
+                    ]
                 TabItem.create [
                     TabItem.header "Tree Selection"
                     TabItem.content (TreeSelection.view state.TreeSelection (Tree >> dispatch))
                     ]
-                // TabItem.create [
-                //     TabItem.header "Layout"
-                //     TabItem.content (Layout.view state.Layout)
-                //     ]
-                // TabItem.create [
-                //     TabItem.header "Components"
-                //     TabItem.content (Components.view ())
-                //     ]
+                TabItem.create [
+                    TabItem.header "Layout"
+                    TabItem.content (Layout.view state.Layout)
+                    ]
+                TabItem.create [
+                    TabItem.header "Components"
+                    TabItem.content (Components.view ())
+                    ]
             ]
 
         // main dock panel
