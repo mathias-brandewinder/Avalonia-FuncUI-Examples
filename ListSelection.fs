@@ -127,6 +127,7 @@ module ListSelection =
                 Items =
                     state.Items
                     |> Array.append (Array.singleton item)
+                SelectedItemId = Some item.Id
             },
             Cmd.none
 
@@ -151,6 +152,7 @@ module ListSelection =
 
                             TextBlock.create [ TextBlock.text "Create" ]
                             Button.create [
+                                Button.classes [ "wide" ]
                                 Button.content "Create New"
                                 Button.onClick (fun _ -> CreateItem |> dispatch)
                                 ]
