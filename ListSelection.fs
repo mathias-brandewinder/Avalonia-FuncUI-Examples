@@ -153,10 +153,22 @@ module ListSelection =
             let view (state: State) dispatch =
                 DockPanel.create [
                     DockPanel.children [
+
                         TextBlock.create [
                             TextBlock.dock Dock.Top
                             TextBlock.text "Items"
                             ]
+
+                        Button.create [
+                            Border.dock Dock.Top
+
+                            Button.classes [ "wide" ]
+                            Button.content "Create New"
+                            Button.onClick (fun _ ->
+                                CreateItem
+                                |> dispatch)
+                            ]
+
                         ListBox.create [
                             ListBox.dataItems (state.VisibleItems)
                             ListBox.selectedItem (
@@ -225,43 +237,41 @@ module ListSelection =
         let view (state: State) (dispatch: Msg -> unit): IView =
             DockPanel.create [
                 DockPanel.children [
-                    StackPanel.create [
-                        StackPanel.orientation Orientation.Vertical
-                        StackPanel.children [
+                    // top section: filter
+                    Border.create [
 
-                            // top secion: filter
-                            Border.create [
+                        Border.dock Dock.Top
 
-                                Border.margin 0
-                                Border.padding 10
-                                Border.borderThickness 1
-                                Border.borderBrush "Gray"
-                                Border.background "LightBlue"
-                                Border.cornerRadius 5
+                        Border.classes [ "card" ]
 
-                                Border.child (
-                                    Filter.view state dispatch
-                                    )
+                        Border.borderBrush "DarkBlue"
+                        Border.background "LightBlue"
+
+                        Border.child (
+                            Filter.view state dispatch
+                            )
+                        ]
+
+                    // bottom section: count of items
+                    Border.create [
+                        Border.dock Dock.Bottom
+
+                        Border.classes [ "card" ]
+
+                        Border.borderBrush "DarkBlue"
+                        Border.background "LightBlue"
+                        Border.child (
+                            TextBlock.create [
+                                TextBlock.text $"Total items: {state.Items.Length}"
                                 ]
+                            )
+                        ]
 
-                            Button.create [
-                                Button.classes [ "wide" ]
-                                Button.content "Create New"
-                                Button.onClick (fun _ ->
-                                    CreateItem
-                                    |> dispatch)
-                                ]
-
-                            Border.create [
-                                Border.dock Dock.Bottom
-                                ]
-
-                            Border.create [
-                                Border.child (
-                                    ItemsList.view state dispatch
-                                    )
-                                ]
-                            ]
+                    // middle section / fill: list
+                    Border.create [
+                        Border.child (
+                            ItemsList.view state dispatch
+                            )
                         ]
                     ]
                 ]

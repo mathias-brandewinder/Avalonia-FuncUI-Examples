@@ -15,4 +15,10 @@
         <Setter Property="VerticalAlignment" Value="Bottom" />
     </Style>
 
+    <Style Selector="Border.card">
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
 </Styles>
