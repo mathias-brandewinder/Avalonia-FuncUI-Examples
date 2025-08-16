@@ -157,12 +157,13 @@ module ListSelection =
                         TextBlock.create [
                             TextBlock.dock Dock.Top
                             TextBlock.text "Items"
+                            TextBlock.fontSize 16
                             ]
 
                         Button.create [
-                            Border.dock Dock.Top
-
+                            Button.dock Dock.Top
                             Button.classes [ "wide" ]
+                            Button.margin (0,10,0,0)
                             Button.content "Create New"
                             Button.onClick (fun _ ->
                                 CreateItem
@@ -170,6 +171,7 @@ module ListSelection =
                             ]
 
                         ListBox.create [
+                            ListBox.margin (0, 10, 0, 0)
                             ListBox.dataItems (state.VisibleItems)
                             ListBox.selectedItem (
                                 match state.SelectedItemId with
@@ -233,7 +235,6 @@ module ListSelection =
                         ]
                     ]
 
-
         let view (state: State) (dispatch: Msg -> unit): IView =
             DockPanel.create [
                 DockPanel.children [
@@ -243,9 +244,7 @@ module ListSelection =
                         Border.dock Dock.Top
 
                         Border.classes [ "card" ]
-
-                        Border.borderBrush "DarkBlue"
-                        Border.background "LightBlue"
+                        Border.borderBrush "Black"
 
                         Border.child (
                             Filter.view state dispatch
@@ -256,10 +255,9 @@ module ListSelection =
                     Border.create [
                         Border.dock Dock.Bottom
 
-                        Border.classes [ "card" ]
+                        Border.classes [ "card"; "below" ]
+                        Border.borderBrush "Black"
 
-                        Border.borderBrush "DarkBlue"
-                        Border.background "LightBlue"
                         Border.child (
                             TextBlock.create [
                                 TextBlock.text $"Total items: {state.Items.Length}"
@@ -269,6 +267,7 @@ module ListSelection =
 
                     // middle section / fill: list
                     Border.create [
+                        Border.classes [ "below" ]
                         Border.child (
                             ItemsList.view state dispatch
                             )
@@ -327,6 +326,7 @@ module ListSelection =
     let view (state: State) (dispatch: Msg -> unit): IView =
         // main dock panel
         DockPanel.create [
+            DockPanel.margin 10
             DockPanel.children [
                 // left section: item selector
                 Border.create [
@@ -340,6 +340,7 @@ module ListSelection =
 
                 // right section: selected item
                 Border.create [
+                    Border.classes [ "right" ]
                     Border.child (
                         SelectedItem.view state dispatch
                         )

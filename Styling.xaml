@@ -21,4 +21,12 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
+    <Style Selector="Border.below">
+        <Setter Property="Margin" Value="0,10,0,0" />
+    </Style>
+
+    <Style Selector="Border.right">
+        <Setter Property="Margin" Value="10,0,0,0" />
+    </Style>
+
 </Styles>
