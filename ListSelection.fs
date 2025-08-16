@@ -306,17 +306,19 @@ module ListSelection =
         let view state dispatch: IView =
             DockPanel.create [
                 DockPanel.children [
-                    match state.SelectedItemId with
+                    state.SelectedItemId
+                    |> Option.bind (fun selectedID ->
+                        state.Items
+                        |> Array.tryFind (fun item -> item.Id = selectedID)
+                        )
+                    |> function
                     | None ->
                         TextBlock.create [
                             TextBlock.classes [ "watermark" ]
                             TextBlock.text "No item selected"
                             ]
-
-                    | Some itemId ->
-                        let item =
-                            state.Items
-                            |> Array.find (fun item -> item.Id = itemId)
+                        :> IView
+                    | Some item ->
                         StackPanel.create [
                             StackPanel.orientation Orientation.Vertical
                             StackPanel.children [
