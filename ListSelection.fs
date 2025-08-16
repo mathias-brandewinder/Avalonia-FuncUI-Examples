@@ -38,6 +38,7 @@ module ListSelection =
         | ValueChanged of float
         | FilterChanged of string
         | CreateItem
+        | DeleteItem of Guid
         | IsIncludedChanged of Guid
 
     let init (): State * Cmd<Msg> =
@@ -131,6 +132,15 @@ module ListSelection =
             },
             Cmd.none
 
+        | DeleteItem itemID ->
+            { state with
+                Items =
+                    state.Items
+                    |> Array.filter (fun item -> item.Id <> itemID)
+                SelectedItemId = None
+            },
+            Cmd.none
+
     module Selector =
 
         module Filter =
@@ -210,10 +220,11 @@ module ListSelection =
                                 )
                             ListBox.itemTemplate (
                                 DataTemplateView<Item>.create(fun item ->
-                                    StackPanel.create [
-                                        StackPanel.orientation Orientation.Horizontal
-                                        StackPanel.children [
+                                    DockPanel.create [
+                                        // StackPanel.orientation Orientation.Horizontal
+                                        DockPanel.children [
                                             CheckBox.create [
+                                                CheckBox.dock Dock.Left
                                                 CheckBox.isChecked item.IsIncluded
                                                 CheckBox.onIsCheckedChanged (fun _ ->
                                                     item.Id
@@ -221,7 +232,22 @@ module ListSelection =
                                                     |> dispatch
                                                     )
                                             ]
+                                            Button.create [
+                                                Button.dock Dock.Right
+                                                Button.fontSize 8
+                                                Button.content "X"
+                                                Button.onClick (
+                                                    (fun _ ->
+                                                        item.Id
+                                                        |> DeleteItem
+                                                        |> dispatch
+                                                    ),
+                                                    SubPatchOptions.Always
+                                                    )
+                                                ]
                                             TextBlock.create [
+                                                TextBlock.verticalAlignment VerticalAlignment.Center
+                                                TextBlock.textTrimming Avalonia.Media.TextTrimming.CharacterEllipsis
                                                 TextBlock.text $"{item.Name}"
                                                 ]
                                             ]
