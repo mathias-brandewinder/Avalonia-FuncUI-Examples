@@ -13,9 +13,8 @@ module ListTreeSelection =
     open Avalonia.FuncUI.DSL
     open Avalonia.FuncUI.Types
 
-
-
     type Node<'T> = {
+        Depth: int
         ID: Guid
         Data: 'T
         Branches: Guid []
@@ -37,7 +36,7 @@ module ListTreeSelection =
                     Map.empty
                     |> Map.add
                         rootID
-                        { ID = rootID; Branches = Array.empty; Data = root }
+                        { Depth = 0; ID = rootID; Branches = Array.empty; Data = root }
             }
         static member addChild (parentID: Guid, data: 'T) (tree: Tree<'T>) =
             let parentNode =
@@ -45,7 +44,7 @@ module ListTreeSelection =
                 |> Map.find parentID
 
             let newID = Guid.NewGuid ()
-            let newNode = { ID = newID; Branches = Array.empty; Data = data; }
+            let newNode = { ID = newID; Branches = Array.empty; Data = data; Depth = parentNode.Depth + 1 }
             let updatedParent = {
                 parentNode with
                     Branches =
@@ -58,15 +57,15 @@ module ListTreeSelection =
                     |> Map.add parentID updatedParent
                     |> Map.add newID newNode
             }
-        member this.Display (rootID: Guid): seq<int * Node<'T>> =
-            let rec flatten (depth: int, nodeID: Guid): seq<int * Node<'T>> =
+        member this.Display (rootID: Guid): seq<Node<'T>> =
+            let rec flatten (nodeID: Guid): seq<Node<'T>> =
                 seq {
-                    yield (depth, this.Nodes[nodeID])
+                    yield (this.Nodes[nodeID])
                     yield!
                         this.Nodes[nodeID].Branches
-                        |> Seq.collect (fun nodeID -> flatten (depth + 1, nodeID))
+                        |> Seq.collect flatten
                     }
-            (0, this.RootID) |> flatten
+            this.RootID |> flatten
 
     type Data = {
         Name: string
@@ -74,15 +73,15 @@ module ListTreeSelection =
 
     let testTree =
 
-        let node11 = { ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "1.1" } }
-        let node1 = { ID = Guid.NewGuid (); Branches = [| node11.ID |]; Data = { Name = "1" } }
+        let node11 = { Depth = 2; ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "1.1" } }
+        let node1 = { Depth = 1; ID = Guid.NewGuid (); Branches = [| node11.ID |]; Data = { Name = "1" } }
 
-        let node21 = { ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "2.1" } }
-        let node22 = { ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "2.2" } }
+        let node21 = { Depth = 2; ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "2.1" } }
+        let node22 = { Depth = 2; ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "2.2" } }
 
-        let node2 = { ID = Guid.NewGuid (); Branches = [| node21.ID; node22.ID |]; Data = { Name = "2" } }
+        let node2 = { Depth = 1; ID = Guid.NewGuid (); Branches = [| node21.ID; node22.ID |]; Data = { Name = "2" } }
 
-        let root = { ID = Guid.NewGuid (); Branches = [| node1.ID; node2.ID |]; Data = { Name = "Root" } }
+        let root = { Depth = 0; ID = Guid.NewGuid (); Branches = [| node1.ID; node2.ID |]; Data = { Name = "Root" } }
 
         {
             RootID = root.ID
@@ -142,9 +141,9 @@ module ListTreeSelection =
             ListBox.create [
                 ListBox.dataItems (state.NewTree.Display state.NewTree.RootID)
                 ListBox.itemTemplate (
-                    DataTemplateView<int * Node<Data>>.create(fun (depth, node) ->
+                    DataTemplateView<Node<Data>>.create(fun node ->
                         Border.create [
-                            Border.margin (20.0 * (float depth), 0, 0, 0)
+                            Border.margin (20.0 * (float node.Depth), 0, 0, 0)
                             Border.child (
                                 TextBlock.create [
                                     TextBlock.text node.Data.Name
@@ -158,7 +157,7 @@ module ListTreeSelection =
                     | None -> null
                     | Some itemId ->
                         (state.NewTree.Display state.NewTree.RootID)
-                        |> Seq.tryFind (fun (depth, node) -> node.ID = itemId)
+                        |> Seq.tryFind (fun (node) -> node.ID = itemId)
                         |> function
                             | None -> null
                             | Some item -> box item
@@ -166,7 +165,7 @@ module ListTreeSelection =
                 ListBox.onSelectedItemChanged(
                     (fun selected ->
                         match selected with
-                        | :? (int * Node<Data>) as (_, selectedItem) ->
+                        | :? Node<Data> as selectedItem ->
                             match state.SelectedNodeID with
                             | None ->
                                 selectedItem.ID
