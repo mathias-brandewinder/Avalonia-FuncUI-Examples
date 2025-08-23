@@ -60,7 +60,32 @@ module ListTreeSelection =
             },
             newID
 
-        member this.Display (rootID: Guid): seq<Node<'T>> =
+        static member deleteNode (nodeID: Guid) (tree: Tree<'T>) =
+            let rec children (nodeID: Guid): seq<Node<'T>> =
+                seq {
+                    yield (tree.Nodes[nodeID])
+                    yield!
+                        tree.Nodes[nodeID].Branches
+                        |> Seq.collect children
+                    }
+            (tree, children nodeID)
+            ||> Seq.fold (fun tree node ->
+                { tree with Nodes = tree.Nodes |> Map.remove node.ID}
+                )
+            |> fun tree ->
+                { tree with
+                    Nodes =
+                        tree.Nodes
+                        |> Map.map (fun _ node ->
+                            { node with
+                                Branches =
+                                    node.Branches
+                                    |> Array.filter (fun childID -> childID <> nodeID)
+                            }
+                            )
+                }
+
+        member this.Display (): seq<Node<'T>> =
             let rec flatten (nodeID: Guid): seq<Node<'T>> =
                 seq {
                     yield (this.Nodes[nodeID])
@@ -102,6 +127,7 @@ module ListTreeSelection =
         | SelectedNodeIDChanged of Option<Guid>
         | SelectedNodeRenamed of Guid * string
         | AddChild of Guid
+        | DeleteNode of Guid
 
     let init (): State * Cmd<Msg> =
         {
@@ -138,11 +164,20 @@ module ListTreeSelection =
             },
             Cmd.none
 
+        | DeleteNode nodeID ->
+
+            let updatedTree = Tree.deleteNode nodeID state.Tree
+            { state with
+                Tree = updatedTree
+                SelectedNodeID = None
+            },
+            Cmd.none
+
     module TreeView =
 
         let view (state: State) dispatch: IView =
             ListBox.create [
-                ListBox.dataItems (state.Tree.Display state.Tree.RootID)
+                ListBox.dataItems (state.Tree.Display ())
                 ListBox.itemTemplate (
                     DataTemplateView<Node<Data>>.create(fun node ->
                         Border.create [
@@ -162,6 +197,19 @@ module ListTreeSelection =
                                                 SubPatchOptions.Always
                                                 )
                                             ]
+                                        Button.create [
+                                            Button.dock Dock.Right
+                                            Button.content "x"
+                                            Button.onClick (
+                                                (fun _ ->
+                                                    node.ID
+                                                    |> DeleteNode
+                                                    |> dispatch
+                                                ),
+                                                SubPatchOptions.Always
+                                                )
+                                            ]
+
                                         TextBlock.create [
                                             TextBlock.text node.Data.Name
                                             ]
@@ -175,7 +223,7 @@ module ListTreeSelection =
                     match state.SelectedNodeID with
                     | None -> null
                     | Some itemId ->
-                        (state.Tree.Display state.Tree.RootID)
+                        (state.Tree.Display ())
                         |> Seq.tryFind (fun (node) -> node.ID = itemId)
                         |> function
                             | None -> null
