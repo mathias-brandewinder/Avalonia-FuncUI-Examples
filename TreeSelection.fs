@@ -266,6 +266,7 @@ module TreeSelection =
     let view (state: State) (dispatch: Msg -> unit): IView =
         DockPanel.create [
             DockPanel.children [
+
                 // Left: Tree selection
                 Border.create [
                     Border.dock Dock.Left

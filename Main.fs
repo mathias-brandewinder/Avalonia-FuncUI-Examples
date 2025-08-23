@@ -15,6 +15,7 @@ module Main =
         ListSelection: ListSelection.State
         AsyncOperation: AsyncOperation.State
         TreeSelection: TreeSelection.State
+        ListTreeSelection: ListTreeSelection.State
         Layout: Layout.State
         }
 
@@ -22,18 +23,21 @@ module Main =
         | ListSelection of ListSelection.Msg
         | AsyncOperation of AsyncOperation.Msg
         | Tree of TreeSelection.Msg
+        | ListTree of ListTreeSelection.Msg
 
     let init (): State * Cmd<Msg> =
 
         let listSelectionState, _ = ListSelection.init ()
         let asyncOperationState, _ = AsyncOperation.init ()
         let treeState, _ = TreeSelection.init ()
+        let listTreeState, _ = ListTreeSelection.init ()
         let layout = Layout.init ()
 
         {
             ListSelection = listSelectionState
             AsyncOperation = asyncOperationState
             TreeSelection = treeState
+            ListTreeSelection = listTreeState
             Layout = layout
         },
         Cmd.none
@@ -61,6 +65,11 @@ module Main =
             },
             Cmd.map Tree cmd
 
+        | ListTree msg ->
+            let updatedState, cmd = ListTreeSelection.update msg state.ListTreeSelection
+            { state with ListTreeSelection = updatedState },
+            Cmd.map ListTree cmd
+
     let view (state: State) (dispatch: Msg -> unit): IView =
 
         let tabs: List<IView> =
@@ -76,6 +85,10 @@ module Main =
                 TabItem.create [
                     TabItem.header "Tree Selection"
                     TabItem.content (TreeSelection.view state.TreeSelection (Tree >> dispatch))
+                    ]
+                TabItem.create [
+                    TabItem.header "List Tree Selection"
+                    TabItem.content (ListTreeSelection.view state.ListTreeSelection (ListTree >> dispatch))
                     ]
                 TabItem.create [
                     TabItem.header "Layout"
