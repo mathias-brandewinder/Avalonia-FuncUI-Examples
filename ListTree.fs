@@ -108,57 +108,7 @@ module ListTreeSelection =
         | SelectedNodeIDChanged of Option<Guid>
         | SelectedNodeRenamed of Guid * string
 
-    let view2 (state: State) dispatch: IView =
-        ListBox.create [
-            ListBox.dataItems (state.NewTree.Display state.NewTree.RootID)
-            ListBox.itemTemplate (
-                DataTemplateView<int * Node<Data>>.create(fun (depth, node) ->
-                    Border.create [
-                        Border.margin (20.0 * (float depth), 0, 0, 0)
-                        Border.child (
-                            TextBlock.create [
-                                TextBlock.text node.Data.Name
-                                ]
-                            )
-                        ]
-                    )
-                )
-            ListBox.selectedItem (
-                match state.SelectedNodeID with
-                | None -> null
-                | Some itemId ->
-                    state.NewTree.Nodes
-                    |> Map.tryFind itemId
-                    |> function
-                        | None -> null
-                        | Some item -> box item
-                )
-            ListBox.onSelectedItemChanged(
-                (fun selected ->
-                    match selected with
-                    | :? (int * Node<Data>) as (_, selectedItem) ->
-                        match state.SelectedNodeID with
-                        | None ->
-                            selectedItem.ID
-                            |> Some
-                            |> SelectedNodeIDChanged
-                            |> dispatch
-                        | Some currentlySelectedId ->
-                            if currentlySelectedId <> selectedItem.ID
-                            then
-                                selectedItem.ID
-                                |> Some
-                                |> SelectedNodeIDChanged
-                                |> dispatch
-                            else ignore ()
-                    | _ ->
-                        None
-                        |> SelectedNodeIDChanged
-                        |> dispatch
-                    ),
-                SubPatchOptions.Always
-                )
-            ]
+
 
     let init (): State * Cmd<Msg> =
         {
@@ -176,7 +126,7 @@ module ListTreeSelection =
         | SelectedNodeRenamed (nodeID, name) ->
             let updatedTree =
                 state.NewTree.Nodes
-                |> Map.map (fun nodeID node ->
+                |> Map.map (fun _ node ->
                     if node.ID = nodeID
                     then { node with Data = { node.Data with Name = name } }
                     else node
@@ -185,6 +135,62 @@ module ListTreeSelection =
                 NewTree = { state.NewTree with Nodes = updatedTree }
             },
             Cmd.none
+
+    module TreeView =
+
+        let view (state: State) dispatch: IView =
+            ListBox.create [
+                ListBox.dataItems (state.NewTree.Display state.NewTree.RootID)
+                ListBox.itemTemplate (
+                    DataTemplateView<int * Node<Data>>.create(fun (depth, node) ->
+                        Border.create [
+                            Border.margin (20.0 * (float depth), 0, 0, 0)
+                            Border.child (
+                                TextBlock.create [
+                                    TextBlock.text node.Data.Name
+                                    ]
+                                )
+                            ]
+                        )
+                    )
+                ListBox.selectedItem (
+                    match state.SelectedNodeID with
+                    | None -> null
+                    | Some itemId ->
+                        (state.NewTree.Display state.NewTree.RootID)
+                        |> Seq.tryFind (fun (depth, node) -> node.ID = itemId)
+                        |> function
+                            | None -> null
+                            | Some item -> box item
+                    )
+                ListBox.onSelectedItemChanged(
+                    (fun selected ->
+                        match selected with
+                        | :? (int * Node<Data>) as (_, selectedItem) ->
+                            match state.SelectedNodeID with
+                            | None ->
+                                selectedItem.ID
+                                |> Some
+                                |> SelectedNodeIDChanged
+                                |> dispatch
+                            | Some currentlySelectedId ->
+                                if currentlySelectedId <> selectedItem.ID
+                                then
+                                    selectedItem.ID
+                                    |> Some
+                                    |> SelectedNodeIDChanged
+                                    |> dispatch
+                                else ignore ()
+                        | _ ->
+                            None
+                            |> SelectedNodeIDChanged
+                            |> dispatch
+                        ),
+                    SubPatchOptions.Always
+                    )
+                ]
+            |> View.withKey (Guid.NewGuid().ToString ())
+            :> IView
 
     module SelectedNode =
 
@@ -213,7 +219,7 @@ module ListTreeSelection =
                                                 |> SelectedNodeRenamed
                                                 |> dispatch
                                         ,
-                                        SubPatchOptions.Never
+                                        SubPatchOptions.Always
                                         )
                                     ]
                                 Border.create []
@@ -222,8 +228,8 @@ module ListTreeSelection =
                         ]
 
                     ]
-                // |> View.withKey node.Item.Name // (nodeID.ToString ())
-                // :> IView
+                |> View.withKey (nodeID.ToString ())
+                :> IView
 
     let view (state: State) (dispatch: Msg -> unit): IView =
         DockPanel.create [
@@ -232,7 +238,7 @@ module ListTreeSelection =
                     Border.dock Dock.Left
                     Border.width 250
                     Border.child (
-                        view2 state dispatch
+                        TreeView.view state dispatch
                         )
                     ]
 
