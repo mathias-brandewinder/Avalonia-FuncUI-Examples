@@ -18,6 +18,7 @@ module ListTreeSelection =
         ID: Guid
         Data: 'T
         Branches: Guid []
+        IsExpanded: bool
         }
 
     type Tree<'T> = {
@@ -36,7 +37,7 @@ module ListTreeSelection =
                     Map.empty
                     |> Map.add
                         rootID
-                        { Depth = 0; ID = rootID; Branches = Array.empty; Data = root }
+                        { Depth = 0; ID = rootID; Branches = Array.empty; Data = root; IsExpanded = false }
             },
             rootID
         static member addChild (parentID: Guid, data: 'T) (tree: Tree<'T>) =
@@ -45,7 +46,7 @@ module ListTreeSelection =
                 |> Map.find parentID
 
             let newID = Guid.NewGuid ()
-            let newNode = { ID = newID; Branches = Array.empty; Data = data; Depth = parentNode.Depth + 1 }
+            let newNode = { ID = newID; Branches = Array.empty; Data = data; Depth = parentNode.Depth + 1; IsExpanded = false }
             let updatedParent = {
                 parentNode with
                     Branches =
@@ -89,9 +90,11 @@ module ListTreeSelection =
             let rec flatten (nodeID: Guid): seq<Node<'T>> =
                 seq {
                     yield (this.Nodes[nodeID])
-                    yield!
-                        this.Nodes[nodeID].Branches
-                        |> Seq.collect flatten
+                    if this.Nodes[nodeID].IsExpanded
+                    then
+                        yield!
+                            this.Nodes[nodeID].Branches
+                            |> Seq.collect flatten
                     }
             this.RootID |> flatten
 
@@ -128,6 +131,7 @@ module ListTreeSelection =
         | SelectedNodeRenamed of Guid * string
         | AddChild of Guid
         | DeleteNode of Guid
+        | ExpandNode of (Guid * bool)
 
     let init (): State * Cmd<Msg> =
         {
@@ -173,6 +177,22 @@ module ListTreeSelection =
             },
             Cmd.none
 
+        | ExpandNode (nodeID, isExpanded) ->
+            let updatedTree =
+                { state.Tree with
+                    Nodes =
+                        state.Tree.Nodes
+                        |> Map.map (fun key node ->
+                            if key = nodeID
+                            then { node with IsExpanded = isExpanded }
+                            else node
+                            )
+                }
+            { state with
+                Tree = updatedTree
+            },
+            Cmd.none
+
     module TreeView =
 
         let view (state: State) dispatch: IView =
@@ -187,7 +207,7 @@ module ListTreeSelection =
                                     DockPanel.children [
                                         Button.create [
                                             Button.dock Dock.Right
-                                            Button.content "+"
+                                            Button.content "Add"
                                             Button.onClick (
                                                 (fun _ ->
                                                     node.ID
@@ -197,13 +217,27 @@ module ListTreeSelection =
                                                 SubPatchOptions.Always
                                                 )
                                             ]
+
                                         Button.create [
                                             Button.dock Dock.Right
-                                            Button.content "x"
+                                            Button.content "Del"
                                             Button.onClick (
                                                 (fun _ ->
                                                     node.ID
                                                     |> DeleteNode
+                                                    |> dispatch
+                                                ),
+                                                SubPatchOptions.Always
+                                                )
+                                            ]
+
+                                        Button.create [
+                                            Button.dock Dock.Left
+                                            Button.content "+"
+                                            Button.onClick (
+                                                (fun _ ->
+                                                    (node.ID, not node.IsExpanded)
+                                                    |> ExpandNode
                                                     |> dispatch
                                                 ),
                                                 SubPatchOptions.Always
