@@ -37,7 +37,8 @@ module ListTreeSelection =
                     |> Map.add
                         rootID
                         { Depth = 0; ID = rootID; Branches = Array.empty; Data = root }
-            }
+            },
+            rootID
         static member addChild (parentID: Guid, data: 'T) (tree: Tree<'T>) =
             let parentNode =
                 tree.Nodes
@@ -56,7 +57,9 @@ module ListTreeSelection =
                     tree.Nodes
                     |> Map.add parentID updatedParent
                     |> Map.add newID newNode
-            }
+            },
+            newID
+
         member this.Display (rootID: Guid): seq<Node<'T>> =
             let rec flatten (nodeID: Guid): seq<Node<'T>> =
                 seq {
@@ -72,47 +75,38 @@ module ListTreeSelection =
         }
 
     let testTree =
-
-        let node11 = { Depth = 2; ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "1.1" } }
-        let node1 = { Depth = 1; ID = Guid.NewGuid (); Branches = [| node11.ID |]; Data = { Name = "1" } }
-
-        let node21 = { Depth = 2; ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "2.1" } }
-        let node22 = { Depth = 2; ID = Guid.NewGuid (); Branches = Array.empty; Data = { Name = "2.2" } }
-
-        let node2 = { Depth = 1; ID = Guid.NewGuid (); Branches = [| node21.ID; node22.ID |]; Data = { Name = "2" } }
-
-        let root = { Depth = 0; ID = Guid.NewGuid (); Branches = [| node1.ID; node2.ID |]; Data = { Name = "Root" } }
-
-        {
-            RootID = root.ID
-            Nodes =
-                [ node11; node1; node21; node22; node2; root ]
-                |> List.map (fun node -> node.ID, node)
-                |> Map.ofList
-        }
+        Tree.init { Name = "Root" }
+        |> fun (tree, rootID) ->
+            Tree.addChild (rootID, { Name = "1" }) tree
+        |> fun (tree, node1) ->
+            Tree.addChild (node1, { Name = "1.1" }) tree
+        |> fun (tree, _) ->
+            let tree, node2 = Tree.addChild (tree.RootID, { Name = "2" }) tree
+            let tree, _ = Tree.addChild (node2, { Name = "2.1" }) tree
+            let tree, _ = Tree.addChild (node2, { Name = "2.2" }) tree
+            tree
 
     type State = {
         SelectedNodeID: Option<Guid>
-        NewTree: Tree<Data>
+        Tree: Tree<Data>
         }
         with
         member this.SelectedNode =
             this.SelectedNodeID
             |> Option.bind (fun selectedID ->
-                this.NewTree.Nodes
+                this.Tree.Nodes
                 |> Map.tryFind selectedID
                 )
 
     type Msg =
         | SelectedNodeIDChanged of Option<Guid>
         | SelectedNodeRenamed of Guid * string
-
-
+        | AddChild of Guid
 
     let init (): State * Cmd<Msg> =
         {
             SelectedNodeID = testTree.RootID |> Some
-            NewTree = testTree
+            Tree = testTree
         },
         Cmd.none
 
@@ -124,14 +118,23 @@ module ListTreeSelection =
 
         | SelectedNodeRenamed (nodeID, name) ->
             let updatedTree =
-                state.NewTree.Nodes
+                state.Tree.Nodes
                 |> Map.map (fun _ node ->
                     if node.ID = nodeID
                     then { node with Data = { node.Data with Name = name } }
                     else node
                     )
             { state with
-                NewTree = { state.NewTree with Nodes = updatedTree }
+                Tree = { state.Tree with Nodes = updatedTree }
+            },
+            Cmd.none
+
+        | AddChild nodeID ->
+            let newNode = { Name = "NEW NODE" }
+            let updatedTree, childID = Tree.addChild (nodeID, newNode) state.Tree
+            { state with
+                Tree = updatedTree
+                SelectedNodeID = Some childID
             },
             Cmd.none
 
@@ -139,14 +142,30 @@ module ListTreeSelection =
 
         let view (state: State) dispatch: IView =
             ListBox.create [
-                ListBox.dataItems (state.NewTree.Display state.NewTree.RootID)
+                ListBox.dataItems (state.Tree.Display state.Tree.RootID)
                 ListBox.itemTemplate (
                     DataTemplateView<Node<Data>>.create(fun node ->
                         Border.create [
                             Border.margin (20.0 * (float node.Depth), 0, 0, 0)
                             Border.child (
-                                TextBlock.create [
-                                    TextBlock.text node.Data.Name
+                                DockPanel.create [
+                                    DockPanel.children [
+                                        Button.create [
+                                            Button.dock Dock.Right
+                                            Button.content "+"
+                                            Button.onClick (
+                                                (fun _ ->
+                                                    node.ID
+                                                    |> AddChild
+                                                    |> dispatch
+                                                ),
+                                                SubPatchOptions.Always
+                                                )
+                                            ]
+                                        TextBlock.create [
+                                            TextBlock.text node.Data.Name
+                                            ]
+                                        ]
                                     ]
                                 )
                             ]
@@ -156,7 +175,7 @@ module ListTreeSelection =
                     match state.SelectedNodeID with
                     | None -> null
                     | Some itemId ->
-                        (state.NewTree.Display state.NewTree.RootID)
+                        (state.Tree.Display state.Tree.RootID)
                         |> Seq.tryFind (fun (node) -> node.ID = itemId)
                         |> function
                             | None -> null
