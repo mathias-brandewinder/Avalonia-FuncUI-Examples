@@ -16,30 +16,28 @@ module ListSelection =
     type Item = {
         Id: Guid
         Name: string
-        Value: float
-        IsIncluded: bool
+        Description: string
         }
 
     type State = {
         Items: Item []
         SelectedItemId: Option<Guid>
-        Filter: string
+        SearchString: string
         }
         with
         member this.VisibleItems =
             this.Items
             |> Array.filter (fun item ->
-                item.Name.Contains(this.Filter)
+                item.Name.Contains this.SearchString
                 )
 
     type Msg =
         | SelectedItemIdChanged of Option<Guid>
-        | NameChanged of string
-        | ValueChanged of float
-        | FilterChanged of string
         | CreateItem
         | DeleteItem of Guid
-        | IsIncludedChanged of Guid
+        | NameChanged of string
+        | DescriptionChanged of string
+        | SearchStringChanged of string
 
     let init (): State * Cmd<Msg> =
         let items =
@@ -47,14 +45,13 @@ module ListSelection =
                 {
                     Id = Guid.NewGuid()
                     Name = $"Item {i}"
-                    Value = float i
-                    IsIncluded = false
+                    Description = $"Item {i} description"
                 }
                 )
         {
             Items = items
             SelectedItemId = Some (items.[0].Id)
-            Filter = ""
+            SearchString = ""
         },
         Cmd.none
 
@@ -66,63 +63,11 @@ module ListSelection =
             },
             Cmd.none
 
-        | IsIncludedChanged itemId ->
-            let updatedItems =
-                state.Items
-                |> Array.map (fun item ->
-                    if item.Id = itemId
-                    then { item with IsIncluded = not item.IsIncluded }
-                    else item
-                    )
-            { state with
-                Items = updatedItems
-            },
-            Cmd.none
-
-        | NameChanged name ->
-            match state.SelectedItemId with
-            | None -> state, Cmd.none
-            | Some selectedId ->
-                let updatedItems =
-                    state.Items
-                    |> Array.map (fun item ->
-                        if item.Id = selectedId
-                        then { item with Name = name }
-                        else item
-                        )
-                { state with
-                    Items = updatedItems
-                },
-                Cmd.none
-
-        | ValueChanged value ->
-            match state.SelectedItemId with
-            | None -> state, Cmd.none
-            | Some selectedId ->
-                let updatedItems =
-                    state.Items
-                    |> Array.map (fun item ->
-                        if item.Id = selectedId
-                        then { item with Value = value }
-                        else item
-                        )
-                { state with
-                    Items = updatedItems
-                },
-                Cmd.none
-
-        | FilterChanged filter ->
-            { state with
-                Filter = filter
-            },
-            Cmd.none
-
         | CreateItem ->
             let item = {
                 Id = Guid.NewGuid()
                 Name = "NEW ITEM"
-                Value = 0.0
-                IsIncluded = false
+                Description = ""
                 }
             { state with
                 Items =
@@ -141,22 +86,39 @@ module ListSelection =
             },
             Cmd.none
 
+        | SearchStringChanged search ->
+            { state with SearchString = search },
+            Cmd.none
+
+        | NameChanged name ->
+            match state.SelectedItemId with
+            | None -> state, Cmd.none
+            | Some selectedId ->
+                let items =
+                    state.Items
+                    |> Array.map (fun item ->
+                        if item.Id = selectedId
+                        then { item with Name = name }
+                        else item
+                        )
+                { state with Items = items },
+                Cmd.none
+
+        | DescriptionChanged description ->
+            match state.SelectedItemId with
+            | None -> state, Cmd.none
+            | Some selectedId ->
+                let items =
+                    state.Items
+                    |> Array.map (fun item ->
+                        if item.Id = selectedId
+                        then { item with Description = description }
+                        else item
+                        )
+                { state with Items = items },
+                Cmd.none
+
     module Selector =
-
-        module Filter =
-
-            let view state dispatch =
-                StackPanel.create [
-                    StackPanel.children [
-                        TextBlock.create [ TextBlock.text "Filter" ]
-                        TextBox.create [
-                            TextBox.text state.Filter
-                            TextBox.onTextChanged (fun text ->
-                                text |> FilterChanged |> dispatch
-                                )
-                            ]
-                        ]
-                    ]
 
         module ItemsList =
 
@@ -172,22 +134,20 @@ module ListSelection =
 
                         Button.create [
                             Button.dock Dock.Top
-                            Button.classes [ "wide" ]
-                            Button.margin (0,10,0,0)
                             Button.content "Create New"
                             Button.onClick (fun _ ->
                                 CreateItem
-                                |> dispatch)
+                                |> dispatch
+                                )
                             ]
 
                         ListBox.create [
-                            ListBox.margin (0, 10, 0, 0)
                             ListBox.dataItems (state.VisibleItems)
                             ListBox.selectedItem (
                                 match state.SelectedItemId with
                                 | None -> null
                                 | Some itemId ->
-                                    state.VisibleItems
+                                    state.Items
                                     |> Array.tryFind (fun item -> item.Id = itemId)
                                     |> function
                                         | None -> null
@@ -221,17 +181,7 @@ module ListSelection =
                             ListBox.itemTemplate (
                                 DataTemplateView<Item>.create(fun item ->
                                     DockPanel.create [
-                                        // StackPanel.orientation Orientation.Horizontal
                                         DockPanel.children [
-                                            CheckBox.create [
-                                                CheckBox.dock Dock.Left
-                                                CheckBox.isChecked item.IsIncluded
-                                                CheckBox.onIsCheckedChanged (fun _ ->
-                                                    item.Id
-                                                    |> IsIncludedChanged
-                                                    |> dispatch
-                                                    )
-                                            ]
                                             Button.create [
                                                 Button.dock Dock.Right
                                                 Button.fontSize 8
@@ -266,14 +216,18 @@ module ListSelection =
                 DockPanel.children [
                     // top section: filter
                     Border.create [
-
                         Border.dock Dock.Top
-
-                        Border.classes [ "card" ]
-                        Border.borderBrush "Black"
-
                         Border.child (
-                            Filter.view state dispatch
+                            TextBox.create [
+                                TextBox.dock Dock.Top
+                                TextBox.watermark "Search"
+                                TextBox.text state.SearchString
+                                TextBox.onTextChanged (fun text ->
+                                    text
+                                    |> SearchStringChanged
+                                    |> dispatch
+                                    )
+                                ]
                             )
                         ]
 
@@ -281,8 +235,7 @@ module ListSelection =
                     Border.create [
                         Border.dock Dock.Bottom
 
-                        Border.classes [ "card"; "below" ]
-                        Border.borderBrush "Black"
+                        Border.classes [ "below" ]
 
                         Border.child (
                             TextBlock.create [
@@ -303,51 +256,29 @@ module ListSelection =
 
     module SelectedItem =
 
-        let view state dispatch: IView =
+        let view (item: Item) dispatch: IView =
             DockPanel.create [
                 DockPanel.children [
-                    state.SelectedItemId
-                    |> Option.bind (fun selectedID ->
-                        state.Items
-                        |> Array.tryFind (fun item -> item.Id = selectedID)
-                        )
-                    |> function
-                    | None ->
-                        TextBlock.create [
-                            TextBlock.classes [ "watermark" ]
-                            TextBlock.text "No item selected"
-                            ]
-                        :> IView
-                    | Some item ->
-                        StackPanel.create [
-                            StackPanel.orientation Orientation.Vertical
-                            StackPanel.children [
-                                TextBlock.create [
-                                    TextBlock.text $"Item Id: {item.Id}"
-                                    ]
-                                TextBox.create [
-                                    TextBox.text item.Name
-                                    TextBox.onTextChanged (fun text ->
-                                        if text <> item.Name
-                                        then
-                                            text
-                                            |> NameChanged
-                                            |> dispatch
-                                        )
-                                    ]
-                                NumericUpDown.create [
-                                    NumericUpDown.value (decimal item.Value)
-                                    NumericUpDown.onValueChanged (fun value ->
-                                        if value.Value <> (decimal item.Value)
-                                        then
-                                            value.Value
-                                            |> float
-                                            |> ValueChanged
-                                            |> dispatch
-                                        )
-                                    ]
+                    StackPanel.create [
+                        StackPanel.children [
+                            TextBox.create [
+                                TextBox.text item.Name
+                                TextBox.onTextChanged (fun text ->
+                                    text
+                                    |> NameChanged
+                                    |> dispatch
+                                    )
+                                ]
+                            TextBox.create [
+                                TextBox.text item.Description
+                                TextBox.onTextChanged (fun text ->
+                                    text
+                                    |> DescriptionChanged
+                                    |> dispatch
+                                    )
                                 ]
                             ]
+                        ]
                     ]
                 ]
 
@@ -370,10 +301,23 @@ module ListSelection =
                 Border.create [
                     Border.classes [ "right" ]
                     Border.child (
-                        SelectedItem.view state dispatch
+                        state.SelectedItemId
+                        |> Option.bind (fun selectedItemID ->
+                            state.Items
+                            |> Array.tryFind (fun item ->
+                                item.Id = selectedItemID
+                                )
+                            )
+                        |> function
+                        | None ->
+                            TextBlock.create [
+                                TextBlock.text "Select an Item"
+                                ]
+                            :> IView
+                        | Some item ->
+                            SelectedItem.view item dispatch
                         )
                     ]
                 // right section: end
-
                 ]
             ]
